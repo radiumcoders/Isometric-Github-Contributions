@@ -29,7 +29,7 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
     () =>
       new THREE.MeshStandardMaterial({
         color: "#ffffff",
-        roughness: 0.72,
+        roughness: 0.5,
         metalness: 0,
         vertexColors: true,
       }),
@@ -163,15 +163,16 @@ export function ContributionScene({ data }: ContributionSceneProps) {
       dpr={[1, 2]}
     >
       <color attach="background" args={["#010409"]} />
-      <ambientLight intensity={0.22} />
+      <ambientLight intensity={0.42} />
+      <directionalLight position={[0, 40, 0]} intensity={0.55} />
       <directionalLight
-        position={[12, 24, 8]}
-        intensity={0.95}
+        position={[15, 32, 10]}
+        intensity={1.65}
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
       />
-      <directionalLight position={[-8, 10, -6]} intensity={0.38} />
+      <directionalLight position={[-12, 18, -10]} intensity={0.65} />
 
       <ContributionBars data={data} />
     </Canvas>
