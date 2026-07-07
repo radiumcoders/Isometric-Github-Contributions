@@ -74,13 +74,13 @@ export function ContributionGraph() {
         )}
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 p-4 sm:p-6">
-        <div className="pointer-events-auto flex w-full max-w-3xl flex-col gap-4 border border-emerald-300/15 bg-black/70 p-4 text-white shadow-2xl shadow-black/40 backdrop-blur-md">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 p-3 sm:p-4">
+        <div className="pointer-events-auto flex w-full max-w-xl flex-col gap-3 border border-emerald-300/15 bg-black/45 p-3 text-white shadow-2xl shadow-black/30 backdrop-blur-sm">
           <div>
-            <h1 className="text-xl font-medium tracking-tight">
+            <h1 className="text-base font-medium tracking-tight sm:text-lg">
               Isometric Contribution Graph
             </h1>
-            <p className="mt-1 text-sm leading-relaxed text-emerald-100/65">
+            <p className="mt-1 text-xs leading-relaxed text-emerald-100/65 sm:text-sm">
               Paste a GitHub username or profile link. Each square&apos;s height
               equals that day&apos;s contribution count.
             </p>
@@ -97,12 +97,12 @@ export function ContributionGraph() {
               onChange={(event) => setInput(event.target.value)}
               disabled={loading}
               aria-invalid={!!error}
-              className="rounded-none border-emerald-100/20 bg-white/95 text-black placeholder:text-black/50 sm:flex-1"
+              className="h-9 rounded-none border-emerald-100/20 bg-white/95 text-black placeholder:text-black/50 sm:flex-1"
             />
             <Button
               type="submit"
               disabled={loading || !input.trim()}
-              className="rounded-none bg-emerald-400 text-black hover:bg-emerald-300"
+              className="h-9 rounded-none bg-emerald-400 text-black hover:bg-emerald-300"
             >
               {loading ? (
                 <>
@@ -148,7 +148,7 @@ export function ContributionGraph() {
         </div>
 
         {profile ? (
-          <p className="pointer-events-auto mt-3 max-w-3xl text-xs text-emerald-100/55">
+          <p className="pointer-events-auto mt-2 max-w-xl text-xs text-emerald-100/55">
             Drag to rotate - Scroll to zoom - Height is 1 unit per contribution
           </p>
         ) : null}

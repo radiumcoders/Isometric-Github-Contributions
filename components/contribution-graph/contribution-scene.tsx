@@ -32,26 +32,13 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
   )
   const material = useMemo(
     () =>
-      new THREE.MeshLambertMaterial({
+      new THREE.MeshBasicMaterial({
         color: "#ffffff",
-        emissive: "#001a0b",
-        emissiveIntensity: 0.18,
+        toneMapped: false,
         vertexColors: true,
       }),
     []
   )
-
-  const instanceColors = useMemo(() => {
-    const colors = new Float32Array(data.length * 3)
-    const color = new THREE.Color()
-
-    data.forEach((entry, index) => {
-      color.set(getContributionColor(entry.count, maxCount))
-      color.toArray(colors, index * 3)
-    })
-
-    return colors
-  }, [data, maxCount])
 
   const weeks = useMemo(() => {
     if (data.length === 0) return GRAPH_CONFIG.weeks
@@ -83,6 +70,7 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
     const mesh = meshRef.current
     if (!mesh || data.length === 0) return
 
+    const color = new THREE.Color()
     const temp = new THREE.Object3D()
 
     data.forEach((entry, index) => {
@@ -95,10 +83,14 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
       temp.scale.set(1, height / cellSize, 1)
       temp.updateMatrix()
       mesh.setMatrixAt(index, temp.matrix)
+
+      color.set(getContributionColor(entry.count, maxCount))
+      mesh.setColorAt(index, color)
     })
 
     mesh.instanceMatrix.needsUpdate = true
-  }, [data, offsetX, offsetZ, cellSize, gap, heightUnit])
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
+  }, [data, offsetX, offsetZ, cellSize, gap, heightUnit, maxCount])
 
   return (
     <group>
@@ -118,12 +110,7 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
           castShadow
           receiveShadow
           frustumCulled={false}
-        >
-          <instancedBufferAttribute
-            attach="instanceColor"
-            args={[instanceColors, 3]}
-          />
-        </instancedMesh>
+        />
       ) : null}
 
       <SceneCamera
@@ -180,8 +167,8 @@ export function ContributionScene({ data }: ContributionSceneProps) {
       dpr={[1, 2]}
     >
       <color attach="background" args={["#010409"]} />
-      <ambientLight intensity={0.95} />
-      <directionalLight position={[0, 40, 0]} intensity={0.85} />
+      <ambientLight intensity={1.1} />
+      <directionalLight position={[0, 40, 0]} intensity={1} />
       <directionalLight
         position={[15, 32, 10]}
         intensity={1.5}

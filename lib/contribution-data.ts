@@ -44,20 +44,20 @@ export function generateMockContributions(): ContributionDay[] {
 
 // Greens tuned for the 3D scene, from nearly black low terrain to bright peaks.
 export const GITHUB_CONTRIBUTION_COLORS = [
-  "#002611",
-  "#064d24",
-  "#16833f",
-  "#34c759",
-  "#9cffb1",
+  "#052e16",
+  "#166534",
+  "#22c55e",
+  "#86efac",
+  "#dcfce7",
 ] as const
 
 export function getContributionColor(count: number, maxCount = 0): string {
   if (count <= 0 || maxCount <= 0) return GITHUB_CONTRIBUTION_COLORS[0]
 
-  const intensity = count / maxCount
-  if (intensity <= 0.25) return GITHUB_CONTRIBUTION_COLORS[1]
-  if (intensity <= 0.5) return GITHUB_CONTRIBUTION_COLORS[2]
-  if (intensity <= 0.75) return GITHUB_CONTRIBUTION_COLORS[3]
+  const intensity = Math.sqrt(count / maxCount)
+  if (intensity <= 0.2) return GITHUB_CONTRIBUTION_COLORS[1]
+  if (intensity <= 0.45) return GITHUB_CONTRIBUTION_COLORS[2]
+  if (intensity <= 0.7) return GITHUB_CONTRIBUTION_COLORS[3]
   return GITHUB_CONTRIBUTION_COLORS[4]
 }
 
