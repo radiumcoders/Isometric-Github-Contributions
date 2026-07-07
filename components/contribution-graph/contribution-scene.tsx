@@ -92,11 +92,7 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
           receiveShadow
         >
           <boxGeometry args={[cellSize, cellSize, cellSize]} />
-          <meshStandardMaterial
-            roughness={0.35}
-            metalness={0.05}
-            vertexColors
-          />
+          <meshLambertMaterial vertexColors />
         </instancedMesh>
       ) : null}
 
@@ -153,15 +149,15 @@ export function ContributionScene({ data }: ContributionSceneProps) {
       gl={{ antialias: true }}
       dpr={[1, 2]}
     >
-      <ambientLight intensity={0.55} />
+      <ambientLight intensity={0.92} />
       <directionalLight
         position={[12, 24, 8]}
-        intensity={1.1}
+        intensity={0.35}
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
       />
-      <directionalLight position={[-8, 10, -6]} intensity={0.25} />
+      <directionalLight position={[-8, 10, -6]} intensity={0.12} />
 
       <ContributionBars data={data} />
     </Canvas>

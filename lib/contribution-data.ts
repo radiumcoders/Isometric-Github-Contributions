@@ -42,12 +42,21 @@ export function generateMockContributions(): ContributionDay[] {
   return contributions
 }
 
+/** GitHub dark-theme contribution graph palette */
+export const GITHUB_CONTRIBUTION_COLORS = [
+  "#161b22",
+  "#0e4429",
+  "#006d32",
+  "#26a641",
+  "#39d353",
+] as const
+
 export function getContributionColor(count: number): string {
-  if (count === 0) return "#1a1f26"
-  if (count <= 3) return "#0e4429"
-  if (count <= 8) return "#006d32"
-  if (count <= 15) return "#26a641"
-  return "#39d353"
+  if (count === 0) return GITHUB_CONTRIBUTION_COLORS[0]
+  if (count <= 3) return GITHUB_CONTRIBUTION_COLORS[1]
+  if (count <= 8) return GITHUB_CONTRIBUTION_COLORS[2]
+  if (count <= 15) return GITHUB_CONTRIBUTION_COLORS[3]
+  return GITHUB_CONTRIBUTION_COLORS[4]
 }
 
 export const GRAPH_CONFIG = {
