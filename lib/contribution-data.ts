@@ -42,23 +42,27 @@ export function generateMockContributions(): ContributionDay[] {
   return contributions
 }
 
-// Greens tuned for the 3D scene, from nearly black low terrain to bright peaks.
+// GitHub contribution calendar colors, sampled from github.com dark theme on 2026-07-07.
 export const GITHUB_CONTRIBUTION_COLORS = [
-  "#052e16",
-  "#166534",
-  "#22c55e",
-  "#86efac",
-  "#dcfce7",
+  "#151b23",
+  "#033a16",
+  "#196c2e",
+  "#2ea043",
+  "#56d364",
 ] as const
 
-export function getContributionColor(count: number, maxCount = 0): string {
-  if (count <= 0 || maxCount <= 0) return GITHUB_CONTRIBUTION_COLORS[0]
+export function getContributionLevel(count: number, maxCount = 0): number {
+  if (count <= 0 || maxCount <= 0) return 0
 
   const intensity = Math.sqrt(count / maxCount)
-  if (intensity <= 0.2) return GITHUB_CONTRIBUTION_COLORS[1]
-  if (intensity <= 0.45) return GITHUB_CONTRIBUTION_COLORS[2]
-  if (intensity <= 0.7) return GITHUB_CONTRIBUTION_COLORS[3]
-  return GITHUB_CONTRIBUTION_COLORS[4]
+  if (intensity <= 0.25) return 1
+  if (intensity <= 0.5) return 2
+  if (intensity <= 0.75) return 3
+  return 4
+}
+
+export function getContributionColor(count: number, maxCount = 0): string {
+  return GITHUB_CONTRIBUTION_COLORS[getContributionLevel(count, maxCount)]
 }
 
 export const GRAPH_CONFIG = {

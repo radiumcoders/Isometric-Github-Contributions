@@ -1,13 +1,15 @@
 "use client"
 
 import { OrbitControls, OrthographicCamera } from "@react-three/drei"
-import { Canvas } from "@react-three/fiber"
-import { useLayoutEffect, useMemo, useRef } from "react"
+import { Canvas, useFrame } from "@react-three/fiber"
+import { useCallback, useLayoutEffect, useMemo, useRef } from "react"
 import * as THREE from "three"
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js"
 
 import {
   type ContributionDay,
   getContributionColor,
+  getContributionLevel,
   GRAPH_CONFIG,
 } from "@/lib/contribution-data"
 
@@ -16,28 +18,135 @@ type ContributionSceneProps = {
 }
 
 const MIN_BAR_HEIGHT = 0.04
+const SHADOW_CAMERA_SIZE = 38
+const GROW_DURATION_SECONDS = 1.05
+const GROW_STAGGER_SECONDS = 0.42
+const BLOCK_BEVEL_RADIUS = 0.08
+
+type ContributionInstance = {
+  delay: number
+  height: number
+  x: number
+  z: number
+}
+
+function clamp01(value: number) {
+  return Math.min(1, Math.max(0, value))
+}
+
+function easeOutCubic(value: number) {
+  return 1 - Math.pow(1 - clamp01(value), 3)
+}
+
+function ContributionBarLayer({
+  cellSize,
+  color,
+  level,
+  instances,
+}: {
+  cellSize: number
+  color: string
+  level: number
+  instances: ContributionInstance[]
+}) {
+  const meshRef = useRef<THREE.InstancedMesh>(null)
+  const animationStartRef = useRef<number | null>(null)
+  const animationDoneRef = useRef(false)
+  const geometry = useMemo(
+    () =>
+      new RoundedBoxGeometry(
+        cellSize,
+        cellSize,
+        cellSize,
+        2,
+        BLOCK_BEVEL_RADIUS
+      ),
+    [cellSize]
+  )
+  const material = useMemo(
+    () =>
+      new THREE.MeshPhysicalMaterial({
+        color,
+        clearcoat: 0.18 + level * 0.035,
+        clearcoatRoughness: 0.55,
+        emissive: level === 0 ? "#000000" : color,
+        emissiveIntensity: level === 0 ? 0 : 0.045,
+        metalness: 0,
+        reflectivity: 0.22,
+        roughness: 0.38,
+      }),
+    [color, level]
+  )
+
+  const temp = useMemo(() => new THREE.Object3D(), [])
+
+  const setInstanceMatrix = useCallback(
+    (index: number, progress: number) => {
+      const instance = instances[index]
+      if (!instance) return
+
+      const height = Math.max(instance.height * progress, MIN_BAR_HEIGHT * 0.05)
+      temp.position.set(instance.x, height / 2, instance.z)
+      temp.scale.set(1, height / cellSize, 1)
+      temp.updateMatrix()
+      meshRef.current?.setMatrixAt(index, temp.matrix)
+    },
+    [instances, temp, cellSize]
+  )
+
+  useLayoutEffect(() => {
+    const mesh = meshRef.current
+    if (!mesh || instances.length === 0) return
+
+    instances.forEach((_, index) => {
+      setInstanceMatrix(index, 0)
+    })
+
+    mesh.instanceMatrix.needsUpdate = true
+    animationStartRef.current = null
+    animationDoneRef.current = false
+  }, [instances, setInstanceMatrix])
+
+  useFrame(({ clock }) => {
+    const mesh = meshRef.current
+    if (!mesh || instances.length === 0 || animationDoneRef.current) return
+
+    if (animationStartRef.current === null) {
+      animationStartRef.current = clock.elapsedTime
+    }
+
+    const elapsed = clock.elapsedTime - animationStartRef.current
+    let allComplete = true
+
+    instances.forEach((instance, index) => {
+      const progress = easeOutCubic(
+        (elapsed - instance.delay) / GROW_DURATION_SECONDS
+      )
+      if (progress < 1) allComplete = false
+      setInstanceMatrix(index, progress)
+    })
+
+    mesh.instanceMatrix.needsUpdate = true
+    animationDoneRef.current = allComplete
+  })
+
+  return (
+    <instancedMesh
+      ref={meshRef}
+      args={[geometry, material, instances.length]}
+      castShadow
+      receiveShadow
+      frustumCulled={false}
+    />
+  )
+}
 
 function ContributionBars({ data }: { data: ContributionDay[] }) {
-  const meshRef = useRef<THREE.InstancedMesh>(null)
   const { cellSize, gap, heightUnit } = GRAPH_CONFIG
 
   const maxCount = useMemo(
     () => Math.max(...data.map((entry) => entry.count), 0),
     [data]
-  )
-
-  const geometry = useMemo(
-    () => new THREE.BoxGeometry(cellSize, cellSize, cellSize),
-    [cellSize]
-  )
-  const material = useMemo(
-    () =>
-      new THREE.MeshBasicMaterial({
-        color: "#ffffff",
-        toneMapped: false,
-        vertexColors: true,
-      }),
-    []
   )
 
   const weeks = useMemo(() => {
@@ -65,32 +174,39 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
   const gridDepth = days * (cellSize + gap)
   const offsetX = -gridWidth / 2 + cellSize / 2
   const offsetZ = -gridDepth / 2 + cellSize / 2
+  const instances = useMemo(
+    () =>
+      data.map((entry) => {
+        const height =
+          entry.count > 0 ? entry.count * heightUnit : MIN_BAR_HEIGHT
+        const weekRatio = weeks > 1 ? entry.week / (weeks - 1) : 0
+        const dayRatio = days > 1 ? entry.day / (days - 1) : 0
 
-  useLayoutEffect(() => {
-    const mesh = meshRef.current
-    if (!mesh || data.length === 0) return
+        return {
+          color: getContributionColor(entry.count, maxCount),
+          delay: (weekRatio * 0.8 + dayRatio * 0.2) * GROW_STAGGER_SECONDS,
+          height,
+          level: getContributionLevel(entry.count, maxCount),
+          x: offsetX + entry.week * (cellSize + gap),
+          z: offsetZ + entry.day * (cellSize + gap),
+        }
+      }),
+    [data, maxCount, offsetX, offsetZ, cellSize, gap, heightUnit, weeks, days]
+  )
+  const layers = useMemo(() => {
+    const grouped = new Map<
+      string,
+      { color: string; instances: ContributionInstance[]; level: number }
+    >()
 
-    const color = new THREE.Color()
-    const temp = new THREE.Object3D()
-
-    data.forEach((entry, index) => {
-      const height =
-        entry.count > 0 ? entry.count * heightUnit : MIN_BAR_HEIGHT
-      const x = offsetX + entry.week * (cellSize + gap)
-      const z = offsetZ + entry.day * (cellSize + gap)
-
-      temp.position.set(x, height / 2, z)
-      temp.scale.set(1, height / cellSize, 1)
-      temp.updateMatrix()
-      mesh.setMatrixAt(index, temp.matrix)
-
-      color.set(getContributionColor(entry.count, maxCount))
-      mesh.setColorAt(index, color)
+    instances.forEach(({ color, level, ...instance }) => {
+      const group = grouped.get(color) ?? { color, instances: [], level }
+      group.instances.push(instance)
+      grouped.set(color, group)
     })
 
-    mesh.instanceMatrix.needsUpdate = true
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
-  }, [data, offsetX, offsetZ, cellSize, gap, heightUnit, maxCount])
+    return [...grouped.values()]
+  }, [instances])
 
   return (
     <group>
@@ -103,15 +219,15 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
         <meshStandardMaterial color="#00180c" roughness={0.85} />
       </mesh>
 
-      {data.length > 0 ? (
-        <instancedMesh
-          ref={meshRef}
-          args={[geometry, material, data.length]}
-          castShadow
-          receiveShadow
-          frustumCulled={false}
+      {layers.map((layer) => (
+        <ContributionBarLayer
+          key={layer.color}
+          cellSize={cellSize}
+          color={layer.color}
+          instances={layer.instances}
+          level={layer.level}
         />
-      ) : null}
+      ))}
 
       <SceneCamera
         gridWidth={gridWidth}
@@ -161,22 +277,35 @@ function SceneCamera({
 export function ContributionScene({ data }: ContributionSceneProps) {
   return (
     <Canvas
-      shadows
+      shadows="soft"
       className="h-full w-full"
       gl={{ antialias: true }}
       dpr={[1, 2]}
+      onCreated={({ gl }) => {
+        gl.toneMapping = THREE.ACESFilmicToneMapping
+        gl.toneMappingExposure = 1.08
+      }}
     >
       <color attach="background" args={["#010409"]} />
-      <ambientLight intensity={1.1} />
-      <directionalLight position={[0, 40, 0]} intensity={1} />
+      <ambientLight intensity={0.58} />
+      <hemisphereLight args={["#e8fff0", "#020b06", 0.7]} />
       <directionalLight
-        position={[15, 32, 10]}
-        intensity={1.5}
+        position={[22, 34, 24]}
+        intensity={3.35}
         castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
+        shadow-bias={-0.00035}
+        shadow-radius={4}
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+        shadow-camera-left={-SHADOW_CAMERA_SIZE}
+        shadow-camera-right={SHADOW_CAMERA_SIZE}
+        shadow-camera-top={SHADOW_CAMERA_SIZE}
+        shadow-camera-bottom={-SHADOW_CAMERA_SIZE}
+        shadow-camera-near={1}
+        shadow-camera-far={90}
       />
-      <directionalLight position={[-12, 18, -10]} intensity={0.8} />
+      <directionalLight position={[-24, 18, -18]} intensity={0.8} />
+      <directionalLight position={[0, 22, -28]} intensity={0.95} />
 
       <ContributionBars data={data} />
     </Canvas>

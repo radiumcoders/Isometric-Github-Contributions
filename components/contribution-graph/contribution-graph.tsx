@@ -138,7 +138,10 @@ export function ContributionGraph() {
                   {profile.totalContributions.toLocaleString()} contributions
                 </Badge>
                 {maxDay && maxDay.count > 0 ? (
-                  <Badge variant="outline" className="border-white/30">
+                  <Badge
+                    variant="outline"
+                    className="border-emerald-100/25 text-emerald-50/85"
+                  >
                     Peak: {maxDay.count} on {maxDay.date}
                   </Badge>
                 ) : null}
