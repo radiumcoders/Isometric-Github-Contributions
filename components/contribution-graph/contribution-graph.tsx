@@ -7,13 +7,6 @@ import { FormEvent, useMemo, useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import type { ContributionResult } from "@/lib/github"
 
@@ -29,10 +22,7 @@ export function ContributionGraph() {
   const [error, setError] = useState<string | null>(null)
   const [profile, setProfile] = useState<ContributionResult | null>(null)
 
-  const contributions = useMemo(
-    () => profile?.data ?? [],
-    [profile?.data]
-  )
+  const contributions = useMemo(() => profile?.data ?? [], [profile?.data])
 
   const maxDay = useMemo(() => {
     if (contributions.length === 0) return null
@@ -70,15 +60,30 @@ export function ContributionGraph() {
   }
 
   return (
-    <Card className="w-full max-w-5xl rounded-none">
-      <CardHeader>
-        <div className="flex flex-col gap-4">
+    <section className="relative h-full w-full overflow-hidden bg-[#010409]">
+      <div className="absolute inset-0">
+        {profile ? (
+          <ContributionScene key={profile.username} data={contributions} />
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center text-sm text-emerald-100/60">
+            <p>Enter a GitHub profile to render their contribution terrain.</p>
+            <p className="text-xs text-emerald-100/40">
+              Try &quot;torvalds&quot; to start.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 p-4 sm:p-6">
+        <div className="pointer-events-auto flex w-full max-w-3xl flex-col gap-4 border border-emerald-300/15 bg-black/70 p-4 text-white shadow-2xl shadow-black/40 backdrop-blur-md">
           <div>
-            <CardTitle>Isometric Contribution Graph</CardTitle>
-            <CardDescription>
+            <h1 className="text-xl font-medium tracking-tight">
+              Isometric Contribution Graph
+            </h1>
+            <p className="mt-1 text-sm leading-relaxed text-emerald-100/65">
               Paste a GitHub username or profile link. Each square&apos;s height
-              equals that day&apos;s contribution count — zero stays flat.
-            </CardDescription>
+              equals that day&apos;s contribution count.
+            </p>
           </div>
 
           <form
@@ -92,12 +97,12 @@ export function ContributionGraph() {
               onChange={(event) => setInput(event.target.value)}
               disabled={loading}
               aria-invalid={!!error}
-              className="rounded-none sm:flex-1"
+              className="rounded-none border-emerald-100/20 bg-white/95 text-black placeholder:text-black/50 sm:flex-1"
             />
             <Button
               type="submit"
               disabled={loading || !input.trim()}
-              className="rounded-none"
+              className="rounded-none bg-emerald-400 text-black hover:bg-emerald-300"
             >
               {loading ? (
                 <>
@@ -111,7 +116,7 @@ export function ContributionGraph() {
           </form>
 
           {error ? (
-            <p className="text-sm text-destructive">{error}</p>
+            <p className="text-sm text-red-300">{error}</p>
           ) : null}
 
           {profile ? (
@@ -122,18 +127,18 @@ export function ContributionGraph() {
                 width={32}
                 height={32}
                 unoptimized
-                className="size-8 rounded-none ring-1 ring-foreground/10"
+                className="size-8 rounded-none ring-1 ring-emerald-100/20"
               />
               <div className="flex flex-wrap gap-2">
                 <Badge variant="secondary">
                   @{profile.username}
-                  {profile.name ? ` · ${profile.name}` : ""}
+                  {profile.name ? ` - ${profile.name}` : ""}
                 </Badge>
                 <Badge variant="secondary">
                   {profile.totalContributions.toLocaleString()} contributions
                 </Badge>
                 {maxDay && maxDay.count > 0 ? (
-                  <Badge variant="outline">
+                  <Badge variant="outline" className="border-white/30">
                     Peak: {maxDay.count} on {maxDay.date}
                   </Badge>
                 ) : null}
@@ -141,25 +146,13 @@ export function ContributionGraph() {
             </div>
           ) : null}
         </div>
-      </CardHeader>
 
-      <CardContent>
-        <div className="relative h-[480px] w-full overflow-hidden rounded-none border bg-[#010409]">
-          {profile ? (
-            <ContributionScene key={profile.username} data={contributions} />
-          ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center text-sm text-muted-foreground">
-              <p>Enter a GitHub profile to render their contribution terrain.</p>
-              <p className="text-xs">Try &quot;torvalds&quot; to start.</p>
-            </div>
-          )}
-        </div>
         {profile ? (
-          <p className="mt-3 text-xs text-muted-foreground">
-            Drag to rotate · Scroll to zoom · Height is 1 unit per contribution
+          <p className="pointer-events-auto mt-3 max-w-3xl text-xs text-emerald-100/55">
+            Drag to rotate - Scroll to zoom - Height is 1 unit per contribution
           </p>
         ) : null}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   )
 }

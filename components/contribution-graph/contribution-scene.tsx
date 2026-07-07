@@ -21,6 +21,11 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
   const meshRef = useRef<THREE.InstancedMesh>(null)
   const { cellSize, gap, heightUnit } = GRAPH_CONFIG
 
+  const maxCount = useMemo(
+    () => Math.max(...data.map((entry) => entry.count), 0),
+    [data]
+  )
+
   const geometry = useMemo(
     () => new THREE.BoxGeometry(cellSize, cellSize, cellSize),
     [cellSize]
@@ -29,6 +34,8 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
     () =>
       new THREE.MeshLambertMaterial({
         color: "#ffffff",
+        emissive: "#001a0b",
+        emissiveIntensity: 0.18,
         vertexColors: true,
       }),
     []
@@ -39,12 +46,12 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
     const color = new THREE.Color()
 
     data.forEach((entry, index) => {
-      color.set(getContributionColor(entry.count))
+      color.set(getContributionColor(entry.count, maxCount))
       color.toArray(colors, index * 3)
     })
 
     return colors
-  }, [data])
+  }, [data, maxCount])
 
   const weeks = useMemo(() => {
     if (data.length === 0) return GRAPH_CONFIG.weeks
@@ -101,7 +108,7 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
         receiveShadow
       >
         <planeGeometry args={[gridWidth + 2, gridDepth + 2]} />
-        <meshStandardMaterial color="#0d1117" />
+        <meshStandardMaterial color="#00180c" roughness={0.85} />
       </mesh>
 
       {data.length > 0 ? (
@@ -173,16 +180,16 @@ export function ContributionScene({ data }: ContributionSceneProps) {
       dpr={[1, 2]}
     >
       <color attach="background" args={["#010409"]} />
-      <ambientLight intensity={0.65} />
-      <directionalLight position={[0, 40, 0]} intensity={0.7} />
+      <ambientLight intensity={0.95} />
+      <directionalLight position={[0, 40, 0]} intensity={0.85} />
       <directionalLight
         position={[15, 32, 10]}
-        intensity={1.35}
+        intensity={1.5}
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
       />
-      <directionalLight position={[-12, 18, -10]} intensity={0.65} />
+      <directionalLight position={[-12, 18, -10]} intensity={0.8} />
 
       <ContributionBars data={data} />
     </Canvas>
