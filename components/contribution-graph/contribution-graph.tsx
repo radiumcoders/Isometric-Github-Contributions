@@ -140,7 +140,7 @@ export function ContributionGraph() {
       </CardHeader>
 
       <CardContent>
-        <div className="relative h-[480px] w-full overflow-hidden rounded-none border bg-[#010409]">
+        <div className="relative h-[480px] w-full overflow-hidden rounded-none border bg-[#0d1117]">
           {profile ? (
             <ContributionScene key={profile.username} data={contributions} />
           ) : (

@@ -1,10 +1,6 @@
 "use client"
 
-import {
-  ContactShadows,
-  OrbitControls,
-  OrthographicCamera,
-} from "@react-three/drei"
+import { OrbitControls, OrthographicCamera } from "@react-three/drei"
 import { Canvas } from "@react-three/fiber"
 import { useLayoutEffect, useMemo, useRef } from "react"
 import * as THREE from "three"
@@ -20,6 +16,8 @@ type ContributionSceneProps = {
 }
 
 const MIN_BAR_HEIGHT = 0.04
+const SCENE_BACKGROUND = "#0d1117"
+const FLOOR_COLOR = "#161b22"
 
 function ContributionBars({ data }: { data: ContributionDay[] }) {
   const meshRef = useRef<THREE.InstancedMesh>(null)
@@ -81,24 +79,34 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]}>
         <planeGeometry args={[gridWidth + 2, gridDepth + 2]} />
-        <meshBasicMaterial color="#010409" toneMapped={false} />
+        <meshStandardMaterial
+          color={FLOOR_COLOR}
+          roughness={0.95}
+          metalness={0}
+        />
       </mesh>
 
       {data.length > 0 ? (
-        <instancedMesh ref={meshRef} args={[undefined, undefined, data.length]}>
+        <instancedMesh
+          ref={meshRef}
+          args={[undefined, undefined, data.length]}
+          frustumCulled={false}
+        >
           <boxGeometry args={[cellSize, cellSize, cellSize]} />
-          <meshBasicMaterial vertexColors toneMapped={false} />
+          <meshStandardMaterial
+            color="#ffffff"
+            vertexColors
+            roughness={0.55}
+            metalness={0}
+          />
         </instancedMesh>
       ) : null}
 
-      <ContactShadows
-        position={[0, 0.001, 0]}
-        opacity={0.28}
-        scale={Math.max(gridWidth, gridDepth) + 4}
-        blur={2.4}
-        far={maxHeight + 3}
-        color="#0e4429"
-        resolution={512}
+      <pointLight
+        position={[0, maxHeight + 8, 0]}
+        intensity={0.4}
+        color="#39d353"
+        distance={maxHeight + 40}
       />
 
       <SceneCamera
@@ -146,6 +154,28 @@ function SceneCamera({
   )
 }
 
+function SceneLighting() {
+  return (
+    <>
+      <ambientLight intensity={0.75} color="#e6fff0" />
+      <hemisphereLight
+        args={["#9be9a8", "#161b22", 0.55]}
+        position={[0, 40, 0]}
+      />
+      <directionalLight
+        position={[18, 28, 14]}
+        intensity={1.35}
+        color="#f0fff4"
+      />
+      <directionalLight
+        position={[-12, 18, -10]}
+        intensity={0.45}
+        color="#86efac"
+      />
+    </>
+  )
+}
+
 export function ContributionScene({ data }: ContributionSceneProps) {
   return (
     <Canvas
@@ -153,8 +183,8 @@ export function ContributionScene({ data }: ContributionSceneProps) {
       gl={{ antialias: true }}
       dpr={[1, 2]}
     >
-      <color attach="background" args={["#010409"]} />
-      <fog attach="fog" args={["#010409", 45, 130]} />
+      <color attach="background" args={[SCENE_BACKGROUND]} />
+      <SceneLighting />
       <ContributionBars data={data} />
     </Canvas>
   )
