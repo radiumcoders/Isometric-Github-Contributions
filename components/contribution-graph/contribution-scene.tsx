@@ -1,17 +1,13 @@
 "use client"
 
-import {
-  Instance,
-  Instances,
-  OrbitControls,
-  OrthographicCamera,
-} from "@react-three/drei"
+import { OrbitControls, OrthographicCamera } from "@react-three/drei"
 import { Canvas } from "@react-three/fiber"
-import { useMemo } from "react"
+import { useLayoutEffect, useMemo, useRef } from "react"
+import * as THREE from "three"
 
 import {
   type ContributionDay,
-  getContributionColor3D,
+  getContributionColor,
   GRAPH_CONFIG,
 } from "@/lib/contribution-data"
 
@@ -20,11 +16,25 @@ type ContributionSceneProps = {
 }
 
 const MIN_BAR_HEIGHT = 0.04
-const SCENE_BACKGROUND = "#0d1117"
-const FLOOR_COLOR = "#4a5568"
 
 function ContributionBars({ data }: { data: ContributionDay[] }) {
+  const meshRef = useRef<THREE.InstancedMesh>(null)
   const { cellSize, gap, heightUnit } = GRAPH_CONFIG
+
+  const geometry = useMemo(
+    () => new THREE.BoxGeometry(cellSize, cellSize, cellSize),
+    [cellSize]
+  )
+  const material = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: "#ffffff",
+        roughness: 0.35,
+        metalness: 0.05,
+        vertexColors: true,
+      }),
+    []
+  )
 
   const weeks = useMemo(() => {
     if (data.length === 0) return GRAPH_CONFIG.weeks
@@ -52,33 +62,51 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
   const offsetX = -gridWidth / 2 + cellSize / 2
   const offsetZ = -gridDepth / 2 + cellSize / 2
 
+  useLayoutEffect(() => {
+    const mesh = meshRef.current
+    if (!mesh || data.length === 0) return
+
+    const temp = new THREE.Object3D()
+    const color = new THREE.Color()
+
+    data.forEach((entry, index) => {
+      const height =
+        entry.count > 0 ? entry.count * heightUnit : MIN_BAR_HEIGHT
+      const x = offsetX + entry.week * (cellSize + gap)
+      const z = offsetZ + entry.day * (cellSize + gap)
+
+      temp.position.set(x, height / 2, z)
+      temp.scale.set(1, height / cellSize, 1)
+      temp.updateMatrix()
+      mesh.setMatrixAt(index, temp.matrix)
+      mesh.setColorAt(index, color.set(getContributionColor(entry.count)))
+    })
+
+    mesh.instanceMatrix.needsUpdate = true
+    if (mesh.instanceColor) {
+      mesh.instanceColor.needsUpdate = true
+    }
+  }, [data, offsetX, offsetZ, cellSize, gap, heightUnit])
+
   return (
     <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]}>
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, -0.01, 0]}
+        receiveShadow
+      >
         <planeGeometry args={[gridWidth + 2, gridDepth + 2]} />
-        <meshBasicMaterial color={FLOOR_COLOR} toneMapped={false} />
+        <meshStandardMaterial color="#0d1117" />
       </mesh>
 
       {data.length > 0 ? (
-        <Instances range={data.length} limit={data.length} frustumCulled={false}>
-          <boxGeometry args={[cellSize, cellSize, cellSize]} />
-          <meshBasicMaterial toneMapped={false} vertexColors />
-          {data.map((entry, index) => {
-            const height =
-              entry.count > 0 ? entry.count * heightUnit : MIN_BAR_HEIGHT
-            const x = offsetX + entry.week * (cellSize + gap)
-            const z = offsetZ + entry.day * (cellSize + gap)
-
-            return (
-              <Instance
-                key={`${entry.date}-${index}`}
-                position={[x, height / 2, z]}
-                scale={[1, height / cellSize, 1]}
-                color={getContributionColor3D(entry.count)}
-              />
-            )
-          })}
-        </Instances>
+        <instancedMesh
+          ref={meshRef}
+          args={[geometry, material, data.length]}
+          castShadow
+          receiveShadow
+          frustumCulled={false}
+        />
       ) : null}
 
       <SceneCamera
@@ -129,11 +157,22 @@ function SceneCamera({
 export function ContributionScene({ data }: ContributionSceneProps) {
   return (
     <Canvas
+      shadows
       className="h-full w-full"
       gl={{ antialias: true }}
       dpr={[1, 2]}
     >
-      <color attach="background" args={[SCENE_BACKGROUND]} />
+      <color attach="background" args={["#010409"]} />
+      <ambientLight intensity={0.55} />
+      <directionalLight
+        position={[12, 24, 8]}
+        intensity={1.1}
+        castShadow
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
+      />
+      <directionalLight position={[-8, 10, -6]} intensity={0.25} />
+
       <ContributionBars data={data} />
     </Canvas>
   )

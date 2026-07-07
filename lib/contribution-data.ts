@@ -42,9 +42,8 @@ export function generateMockContributions(): ContributionDay[] {
   return contributions
 }
 
-/** GitHub dark-theme contribution graph palette */
 export const GITHUB_CONTRIBUTION_COLORS = [
-  "#161b22",
+  "#1a1f26",
   "#0e4429",
   "#006d32",
   "#26a641",
@@ -57,23 +56,6 @@ export function getContributionColor(count: number): string {
   if (count <= 8) return GITHUB_CONTRIBUTION_COLORS[2]
   if (count <= 15) return GITHUB_CONTRIBUTION_COLORS[3]
   return GITHUB_CONTRIBUTION_COLORS[4]
-}
-
-/** Brighter 3D variants — same green hues, lifted for visible geometry */
-export const GITHUB_CONTRIBUTION_COLORS_3D = [
-  "#4a5568",
-  "#22b573",
-  "#2dd47e",
-  "#4ade80",
-  "#86efac",
-] as const
-
-export function getContributionColor3D(count: number): string {
-  if (count === 0) return GITHUB_CONTRIBUTION_COLORS_3D[0]
-  if (count <= 3) return GITHUB_CONTRIBUTION_COLORS_3D[1]
-  if (count <= 8) return GITHUB_CONTRIBUTION_COLORS_3D[2]
-  if (count <= 15) return GITHUB_CONTRIBUTION_COLORS_3D[3]
-  return GITHUB_CONTRIBUTION_COLORS_3D[4]
 }
 
 export const GRAPH_CONFIG = {

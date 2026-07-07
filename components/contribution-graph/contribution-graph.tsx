@@ -1,6 +1,7 @@
 "use client"
 
 import { Loader2 } from "lucide-react"
+import dynamic from "next/dynamic"
 import Image from "next/image"
 import { FormEvent, useMemo, useState } from "react"
 
@@ -14,10 +15,13 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { GITHUB_CONTRIBUTION_COLORS_3D } from "@/lib/contribution-data"
 import type { ContributionResult } from "@/lib/github"
 
-import { ContributionScene } from "./contribution-scene"
+const ContributionScene = dynamic(
+  () =>
+    import("./contribution-scene").then((module) => module.ContributionScene),
+  { ssr: false }
+)
 
 export function ContributionGraph() {
   const [input, setInput] = useState("")
@@ -140,7 +144,7 @@ export function ContributionGraph() {
       </CardHeader>
 
       <CardContent>
-        <div className="relative h-[480px] w-full overflow-hidden rounded-none border bg-[#0d1117]">
+        <div className="relative h-[480px] w-full overflow-hidden rounded-none border bg-[#010409]">
           {profile ? (
             <ContributionScene key={profile.username} data={contributions} />
           ) : (
@@ -151,22 +155,9 @@ export function ContributionGraph() {
           )}
         </div>
         {profile ? (
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground">
-              Drag to rotate · Scroll to zoom · Height is 1 unit per contribution
-            </p>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span>Less</span>
-              {GITHUB_CONTRIBUTION_COLORS_3D.map((color) => (
-                <span
-                  key={color}
-                  className="size-2.5 rounded-sm"
-                  style={{ backgroundColor: color }}
-                />
-              ))}
-              <span>More</span>
-            </div>
-          </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Drag to rotate · Scroll to zoom · Height is 1 unit per contribution
+          </p>
         ) : null}
       </CardContent>
     </Card>
