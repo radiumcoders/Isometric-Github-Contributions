@@ -43,11 +43,11 @@ export function generateMockContributions(): ContributionDay[] {
 }
 
 export const GITHUB_CONTRIBUTION_COLORS = [
-  "#1a1f26",
-  "#0e4429",
+  "#161b22", // 0 contributions
+  "#0e4429", // low
   "#006d32",
   "#26a641",
-  "#39d353",
+  "#39d353", // high
 ] as const
 
 export function getContributionColor(count: number): string {
