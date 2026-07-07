@@ -42,12 +42,13 @@ export function generateMockContributions(): ContributionDay[] {
   return contributions
 }
 
+// Brighter greens tuned for 3D lighting — GitHub's flat 2D palette reads as black here.
 export const GITHUB_CONTRIBUTION_COLORS = [
-  "#161b22", // 0 contributions
-  "#0e4429", // low
-  "#006d32",
-  "#26a641",
-  "#39d353", // high
+  "#2d333b", // 0 contributions
+  "#27a147", // low
+  "#3fbb5f",
+  "#4fd16b",
+  "#6ee789", // high
 ] as const
 
 export function getContributionColor(count: number): string {

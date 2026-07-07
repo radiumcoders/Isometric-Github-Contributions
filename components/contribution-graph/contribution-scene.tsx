@@ -27,14 +27,24 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
   )
   const material = useMemo(
     () =>
-      new THREE.MeshStandardMaterial({
+      new THREE.MeshLambertMaterial({
         color: "#ffffff",
-        roughness: 0.5,
-        metalness: 0,
         vertexColors: true,
       }),
     []
   )
+
+  const instanceColors = useMemo(() => {
+    const colors = new Float32Array(data.length * 3)
+    const color = new THREE.Color()
+
+    data.forEach((entry, index) => {
+      color.set(getContributionColor(entry.count))
+      color.toArray(colors, index * 3)
+    })
+
+    return colors
+  }, [data])
 
   const weeks = useMemo(() => {
     if (data.length === 0) return GRAPH_CONFIG.weeks
@@ -67,7 +77,6 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
     if (!mesh || data.length === 0) return
 
     const temp = new THREE.Object3D()
-    const color = new THREE.Color()
 
     data.forEach((entry, index) => {
       const height =
@@ -79,13 +88,9 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
       temp.scale.set(1, height / cellSize, 1)
       temp.updateMatrix()
       mesh.setMatrixAt(index, temp.matrix)
-      mesh.setColorAt(index, color.set(getContributionColor(entry.count)))
     })
 
     mesh.instanceMatrix.needsUpdate = true
-    if (mesh.instanceColor) {
-      mesh.instanceColor.needsUpdate = true
-    }
   }, [data, offsetX, offsetZ, cellSize, gap, heightUnit])
 
   return (
@@ -106,7 +111,12 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
           castShadow
           receiveShadow
           frustumCulled={false}
-        />
+        >
+          <instancedBufferAttribute
+            attach="instanceColor"
+            args={[instanceColors, 3]}
+          />
+        </instancedMesh>
       ) : null}
 
       <SceneCamera
@@ -163,11 +173,11 @@ export function ContributionScene({ data }: ContributionSceneProps) {
       dpr={[1, 2]}
     >
       <color attach="background" args={["#010409"]} />
-      <ambientLight intensity={0.42} />
-      <directionalLight position={[0, 40, 0]} intensity={0.55} />
+      <ambientLight intensity={0.65} />
+      <directionalLight position={[0, 40, 0]} intensity={0.7} />
       <directionalLight
         position={[15, 32, 10]}
-        intensity={1.65}
+        intensity={1.35}
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
