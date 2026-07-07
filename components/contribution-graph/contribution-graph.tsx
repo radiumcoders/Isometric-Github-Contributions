@@ -14,7 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { GITHUB_CONTRIBUTION_COLORS } from "@/lib/contribution-data"
+import { GITHUB_CONTRIBUTION_COLORS_3D } from "@/lib/contribution-data"
 import type { ContributionResult } from "@/lib/github"
 
 import { ContributionScene } from "./contribution-scene"
@@ -157,7 +157,7 @@ export function ContributionGraph() {
             </p>
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span>Less</span>
-              {GITHUB_CONTRIBUTION_COLORS.map((color) => (
+              {GITHUB_CONTRIBUTION_COLORS_3D.map((color) => (
                 <span
                   key={color}
                   className="size-2.5 rounded-sm"

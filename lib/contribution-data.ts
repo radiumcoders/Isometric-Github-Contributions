@@ -59,13 +59,13 @@ export function getContributionColor(count: number): string {
   return GITHUB_CONTRIBUTION_COLORS[4]
 }
 
-/** Brighter 3D variants — same green hues, lifted for lit geometry */
+/** Brighter 3D variants — same green hues, lifted for visible geometry */
 export const GITHUB_CONTRIBUTION_COLORS_3D = [
-  "#2d3640",
-  "#1f7a4a",
-  "#28a745",
-  "#3ecf6e",
-  "#56f08a",
+  "#4a5568",
+  "#22b573",
+  "#2dd47e",
+  "#4ade80",
+  "#86efac",
 ] as const
 
 export function getContributionColor3D(count: number): string {
