@@ -59,6 +59,23 @@ export function getContributionColor(count: number): string {
   return GITHUB_CONTRIBUTION_COLORS[4]
 }
 
+/** Brighter 3D variants — same green hues, lifted for lit geometry */
+export const GITHUB_CONTRIBUTION_COLORS_3D = [
+  "#2d3640",
+  "#1f7a4a",
+  "#28a745",
+  "#3ecf6e",
+  "#56f08a",
+] as const
+
+export function getContributionColor3D(count: number): string {
+  if (count === 0) return GITHUB_CONTRIBUTION_COLORS_3D[0]
+  if (count <= 3) return GITHUB_CONTRIBUTION_COLORS_3D[1]
+  if (count <= 8) return GITHUB_CONTRIBUTION_COLORS_3D[2]
+  if (count <= 15) return GITHUB_CONTRIBUTION_COLORS_3D[3]
+  return GITHUB_CONTRIBUTION_COLORS_3D[4]
+}
+
 export const GRAPH_CONFIG = {
   weeks: WEEKS,
   days: DAYS,

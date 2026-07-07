@@ -7,7 +7,7 @@ import * as THREE from "three"
 
 import {
   type ContributionDay,
-  getContributionColor,
+  getContributionColor3D,
   GRAPH_CONFIG,
 } from "@/lib/contribution-data"
 
@@ -17,7 +17,7 @@ type ContributionSceneProps = {
 
 const MIN_BAR_HEIGHT = 0.04
 const SCENE_BACKGROUND = "#0d1117"
-const FLOOR_COLOR = "#161b22"
+const FLOOR_COLOR = "#2d3640"
 
 function ContributionBars({ data }: { data: ContributionDay[] }) {
   const meshRef = useRef<THREE.InstancedMesh>(null)
@@ -66,7 +66,7 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
       temp.scale.set(1, height / cellSize, 1)
       temp.updateMatrix()
       mesh.setMatrixAt(index, temp.matrix)
-      mesh.setColorAt(index, color.set(getContributionColor(entry.count)))
+      mesh.setColorAt(index, color.set(getContributionColor3D(entry.count)))
     })
 
     mesh.instanceMatrix.needsUpdate = true
@@ -79,11 +79,7 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]}>
         <planeGeometry args={[gridWidth + 2, gridDepth + 2]} />
-        <meshStandardMaterial
-          color={FLOOR_COLOR}
-          roughness={0.95}
-          metalness={0}
-        />
+        <meshLambertMaterial color={FLOOR_COLOR} />
       </mesh>
 
       {data.length > 0 ? (
@@ -93,21 +89,9 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
           frustumCulled={false}
         >
           <boxGeometry args={[cellSize, cellSize, cellSize]} />
-          <meshStandardMaterial
-            color="#ffffff"
-            vertexColors
-            roughness={0.55}
-            metalness={0}
-          />
+          <meshLambertMaterial color="#ffffff" vertexColors />
         </instancedMesh>
       ) : null}
-
-      <pointLight
-        position={[0, maxHeight + 8, 0]}
-        intensity={0.4}
-        color="#39d353"
-        distance={maxHeight + 40}
-      />
 
       <SceneCamera
         gridWidth={gridWidth}
@@ -154,29 +138,54 @@ function SceneCamera({
   )
 }
 
-function SceneLighting() {
+function SceneLighting({
+  gridWidth,
+  gridDepth,
+}: {
+  gridWidth: number
+  gridDepth: number
+}) {
+  const span = Math.max(gridWidth, gridDepth, 8)
+
   return (
     <>
-      <ambientLight intensity={0.75} color="#e6fff0" />
+      <ambientLight intensity={1.2} color="#f8fffb" />
       <hemisphereLight
-        args={["#9be9a8", "#161b22", 0.55]}
-        position={[0, 40, 0]}
+        args={["#d4fce0", "#4a6b5c", 0.9]}
+        position={[0, span, 0]}
       />
       <directionalLight
-        position={[18, 28, 14]}
-        intensity={1.35}
-        color="#f0fff4"
-      />
-      <directionalLight
-        position={[-12, 18, -10]}
+        position={[span * 0.35, span * 0.7, span * 0.4]}
         intensity={0.45}
-        color="#86efac"
+        color="#ffffff"
+      />
+      <directionalLight
+        position={[span * 0.5, span * 0.35, span * 0.5]}
+        intensity={0.75}
+        color="#eefff4"
+      />
+      <directionalLight
+        position={[-span * 0.4, span * 0.3, -span * 0.35]}
+        intensity={0.5}
+        color="#c8f5d4"
       />
     </>
   )
 }
 
 export function ContributionScene({ data }: ContributionSceneProps) {
+  const weeks =
+    data.length === 0
+      ? GRAPH_CONFIG.weeks
+      : Math.max(...data.map((entry) => entry.week)) + 1
+  const days =
+    data.length === 0
+      ? GRAPH_CONFIG.days
+      : Math.max(...data.map((entry) => entry.day)) + 1
+  const { cellSize, gap } = GRAPH_CONFIG
+  const gridWidth = weeks * (cellSize + gap)
+  const gridDepth = days * (cellSize + gap)
+
   return (
     <Canvas
       className="h-full w-full"
@@ -184,7 +193,7 @@ export function ContributionScene({ data }: ContributionSceneProps) {
       dpr={[1, 2]}
     >
       <color attach="background" args={[SCENE_BACKGROUND]} />
-      <SceneLighting />
+      <SceneLighting gridWidth={gridWidth} gridDepth={gridDepth} />
       <ContributionBars data={data} />
     </Canvas>
   )
