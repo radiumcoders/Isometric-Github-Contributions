@@ -1,6 +1,10 @@
 "use client"
 
-import { OrbitControls, OrthographicCamera } from "@react-three/drei"
+import {
+  ContactShadows,
+  OrbitControls,
+  OrthographicCamera,
+} from "@react-three/drei"
 import { Canvas } from "@react-three/fiber"
 import { useLayoutEffect, useMemo, useRef } from "react"
 import * as THREE from "three"
@@ -75,26 +79,27 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
 
   return (
     <group>
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, -0.01, 0]}
-        receiveShadow
-      >
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]}>
         <planeGeometry args={[gridWidth + 2, gridDepth + 2]} />
-        <meshStandardMaterial color="#0d1117" />
+        <meshBasicMaterial color="#010409" toneMapped={false} />
       </mesh>
 
       {data.length > 0 ? (
-        <instancedMesh
-          ref={meshRef}
-          args={[undefined, undefined, data.length]}
-          castShadow
-          receiveShadow
-        >
+        <instancedMesh ref={meshRef} args={[undefined, undefined, data.length]}>
           <boxGeometry args={[cellSize, cellSize, cellSize]} />
-          <meshLambertMaterial vertexColors />
+          <meshBasicMaterial vertexColors toneMapped={false} />
         </instancedMesh>
       ) : null}
+
+      <ContactShadows
+        position={[0, 0.001, 0]}
+        opacity={0.28}
+        scale={Math.max(gridWidth, gridDepth) + 4}
+        blur={2.4}
+        far={maxHeight + 3}
+        color="#0e4429"
+        resolution={512}
+      />
 
       <SceneCamera
         gridWidth={gridWidth}
@@ -144,21 +149,12 @@ function SceneCamera({
 export function ContributionScene({ data }: ContributionSceneProps) {
   return (
     <Canvas
-      shadows={{ type: 1 }}
       className="h-full w-full"
       gl={{ antialias: true }}
       dpr={[1, 2]}
     >
-      <ambientLight intensity={0.92} />
-      <directionalLight
-        position={[12, 24, 8]}
-        intensity={0.35}
-        castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
-      />
-      <directionalLight position={[-8, 10, -6]} intensity={0.12} />
-
+      <color attach="background" args={["#010409"]} />
+      <fog attach="fog" args={["#010409", 45, 130]} />
       <ContributionBars data={data} />
     </Canvas>
   )
