@@ -17,7 +17,15 @@ import { parseGitHubUsername } from "@/lib/github"
 const ContributionScene = dynamic(
   () =>
     import("./contribution-scene").then((module) => module.ContributionScene),
-  { ssr: false }
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-sm text-emerald-100/60">
+        <Loader2 className="size-6 animate-spin text-emerald-300" />
+        <p>Preparing 3D scene...</p>
+      </div>
+    ),
+  }
 )
 
 type ContributionGraphProps = {
@@ -123,6 +131,11 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
       <div className="absolute inset-0">
         {profile ? (
           <ContributionScene key={profile.username} data={contributions} />
+        ) : loading && activeUsername ? (
+          <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-sm text-emerald-100/60">
+            <Loader2 className="size-6 animate-spin text-emerald-300" />
+            <p>Loading @{activeUsername}&apos;s contribution terrain...</p>
+          </div>
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center text-sm text-emerald-100/60">
             <p>Enter a GitHub profile to render their contribution terrain.</p>

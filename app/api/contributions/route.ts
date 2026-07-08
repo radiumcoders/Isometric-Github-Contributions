@@ -17,7 +17,13 @@ export async function GET(request: Request) {
 
   try {
     const result = await fetchGitHubContributions(username)
-    await recordSearch(result)
+
+    try {
+      await recordSearch(result)
+    } catch {
+      // Leaderboard persistence should never block graph loading.
+    }
+
     return NextResponse.json(result)
   } catch (error) {
     const message =

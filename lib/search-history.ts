@@ -12,14 +12,24 @@ export type SearchEntry = {
   lastSearchedAt: string
 }
 
-const DATA_DIR = path.join(process.cwd(), "data")
+const DATA_DIR = process.env.VERCEL
+  ? path.join("/tmp", "iso-git-contri")
+  : path.join(process.cwd(), "data")
 const DATA_FILE = path.join(DATA_DIR, "search-history.json")
 
+let memoryEntries: SearchEntry[] | null = null
+
 async function readEntries(): Promise<SearchEntry[]> {
+  if (memoryEntries) {
+    return memoryEntries
+  }
+
   try {
     const raw = await fs.readFile(DATA_FILE, "utf8")
     const parsed = JSON.parse(raw) as SearchEntry[]
-    return Array.isArray(parsed) ? parsed : []
+    const entries = Array.isArray(parsed) ? parsed : []
+    memoryEntries = entries
+    return entries
   } catch (error) {
     if (
       error instanceof Error &&
@@ -28,13 +38,19 @@ async function readEntries(): Promise<SearchEntry[]> {
     ) {
       return []
     }
-    throw error
+    return []
   }
 }
 
 async function writeEntries(entries: SearchEntry[]): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true })
-  await fs.writeFile(DATA_FILE, JSON.stringify(entries, null, 2), "utf8")
+  memoryEntries = entries
+
+  try {
+    await fs.mkdir(DATA_DIR, { recursive: true })
+    await fs.writeFile(DATA_FILE, JSON.stringify(entries, null, 2), "utf8")
+  } catch {
+    // Keep in-memory data when the filesystem is unavailable (e.g. serverless).
+  }
 }
 
 export async function recordSearch(result: ContributionResult): Promise<void> {
