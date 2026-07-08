@@ -3,7 +3,7 @@
 import { Loader2 } from "lucide-react"
 import dynamic from "next/dynamic"
 import Image from "next/image"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { parseAsString, useQueryState } from "nuqs"
 import {
   FormEvent,
@@ -41,11 +41,12 @@ type ContributionGraphProps = {
 
 export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
   const router = useRouter()
+  const pathname = usePathname()
   const [queryUser, setQueryUser] = useQueryState(
     "user",
     parseAsString.withDefault("")
   )
-  const [input, setInput] = useState(initialUsername ?? queryUser ?? "")
+  const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [profile, setProfile] = useState<ContributionResult | null>(null)
@@ -100,9 +101,18 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
   }, [])
 
   useEffect(() => {
-    if (!initialUsername) return
+    if (initialUsername) {
+      setInput(initialUsername)
+      return
+    }
 
-    setInput(initialUsername)
+    if (queryUser) {
+      setInput(queryUser)
+    }
+  }, [initialUsername, queryUser])
+
+  useEffect(() => {
+    if (!initialUsername) return
 
     if (
       lastLoadedRef.current?.toLowerCase() === initialUsername.toLowerCase()
@@ -132,14 +142,15 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
       return
     }
 
-    setQueryUser(null)
+    void setQueryUser(null)
 
     const targetPath = `/${username}`
-    if (window.location.pathname !== targetPath) {
-      router.push(targetPath)
+    if (pathname === targetPath) {
+      await loadProfile(username)
+      return
     }
 
-    await loadProfile(username)
+    router.push(targetPath)
   }
 
   return (
