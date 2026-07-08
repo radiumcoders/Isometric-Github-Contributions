@@ -187,7 +187,7 @@ function ContributionBarLayer({
     animationDoneRef.current = allComplete
   })
 
-  const handlePointerMove = useCallback(
+  const showTooltip = useCallback(
     (event: ThreeEvent<PointerEvent>) => {
       event.stopPropagation()
       const instance = instances[event.instanceId ?? -1]
@@ -204,6 +204,14 @@ function ContributionBarLayer({
     [data, instances, onHover]
   )
 
+  const hideTooltip = useCallback(
+    (event: ThreeEvent<PointerEvent>) => {
+      event.stopPropagation()
+      onHover(null)
+    },
+    [onHover]
+  )
+
   return (
     <instancedMesh
       ref={meshRef}
@@ -211,7 +219,9 @@ function ContributionBarLayer({
       castShadow
       receiveShadow
       frustumCulled={false}
-      onPointerMove={handlePointerMove}
+      onPointerOver={showTooltip}
+      onPointerMove={showTooltip}
+      onPointerOut={hideTooltip}
     />
   )
 }
@@ -387,36 +397,75 @@ export function IsometricContributionScene({
 }: IsometricContributionSceneProps) {
   const [tooltip, setTooltip] = useState<TooltipState | null>(null)
   const tooltipRef = useRef<TooltipState | null>(null)
+  const clearHoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  )
 
-  const handleTooltipChange = useCallback((next: TooltipState | null) => {
-    if (next === null) {
-      if (tooltipRef.current !== null) {
-        tooltipRef.current = null
-        setTooltip(null)
-      }
+  const clearTooltip = useCallback((immediate = false) => {
+    if (clearHoverTimeoutRef.current) {
+      clearTimeout(clearHoverTimeoutRef.current)
+      clearHoverTimeoutRef.current = null
+    }
+
+    if (immediate) {
+      tooltipRef.current = null
+      setTooltip(null)
       return
     }
 
-    const current = tooltipRef.current
-    if (
-      current?.date === next.date &&
-      current.count === next.count &&
-      Math.abs(current.x - next.x) < 2 &&
-      Math.abs(current.y - next.y) < 2
-    ) {
-      return
-    }
-
-    tooltipRef.current = next
-    setTooltip(next)
+    clearHoverTimeoutRef.current = setTimeout(() => {
+      tooltipRef.current = null
+      setTooltip(null)
+      clearHoverTimeoutRef.current = null
+    }, 16)
   }, [])
 
+  const handleTooltipChange = useCallback(
+    (next: TooltipState | null) => {
+      if (clearHoverTimeoutRef.current) {
+        clearTimeout(clearHoverTimeoutRef.current)
+        clearHoverTimeoutRef.current = null
+      }
+
+      if (next === null) {
+        clearTooltip()
+        return
+      }
+
+      const current = tooltipRef.current
+      if (
+        current?.date === next.date &&
+        current.count === next.count &&
+        Math.abs(current.x - next.x) < 2 &&
+        Math.abs(current.y - next.y) < 2
+      ) {
+        return
+      }
+
+      tooltipRef.current = next
+      setTooltip(next)
+    },
+    [clearTooltip]
+  )
+
   const handlePointerMissed = useCallback(() => {
-    handleTooltipChange(null)
-  }, [handleTooltipChange])
+    clearTooltip(true)
+  }, [clearTooltip])
+
+  const handlePointerLeave = useCallback(() => {
+    clearTooltip(true)
+  }, [clearTooltip])
+
+  useEffect(() => {
+    return () => {
+      if (clearHoverTimeoutRef.current) {
+        clearTimeout(clearHoverTimeoutRef.current)
+      }
+    }
+  }, [])
 
   return (
-    <div className="relative size-full">
+    <div className="relative size-full" onPointerLeave={handlePointerLeave}>
       <Canvas
         shadows="soft"
         className="size-full cursor-pointer"
