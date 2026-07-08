@@ -1,23 +1,37 @@
 "use client"
 
-import { Loader2 } from "lucide-react"
+import { Check, Loader2, Share2 } from "lucide-react"
 import dynamic from "next/dynamic"
-import Image from "next/image"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { parseAsString, useQueryState } from "nuqs"
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react"
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 
-import { Leaderboard } from "@/components/leaderboard"
-import { Badge } from "@/components/ui/badge"
+import { ProfileAnalysisPanel } from "@/components/profile-analysis"
+import { SearchPanel } from "@/components/search-panel"
+import { SidebarMenu } from "@/components/sidebar-menu"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import type { ContributionResult } from "@/lib/github"
 import { parseGitHubUsername } from "@/lib/github"
 
 const ContributionScene = dynamic(
   () =>
     import("./contribution-scene").then((module) => module.ContributionScene),
-  { ssr: false }
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-sm text-emerald-100/60">
+        <Loader2 className="size-6 animate-spin text-emerald-300" />
+        <p>Preparing 3D scene...</p>
+      </div>
+    ),
+  }
 )
 
 type ContributionGraphProps = {
@@ -26,26 +40,20 @@ type ContributionGraphProps = {
 
 export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
   const router = useRouter()
+  const pathname = usePathname()
   const [queryUser, setQueryUser] = useQueryState(
     "user",
     parseAsString.withDefault("")
   )
-  const [input, setInput] = useState(initialUsername ?? queryUser ?? "")
+  const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [profile, setProfile] = useState<ContributionResult | null>(null)
-  const [leaderboardKey, setLeaderboardKey] = useState(0)
-
-  const activeUsername = initialUsername ?? queryUser ?? null
+  const [copiedShareUrl, setCopiedShareUrl] = useState(false)
+  const lastLoadedRef = useRef<string | null>(null)
+  const copyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const contributions = useMemo(() => profile?.data ?? [], [profile?.data])
-
-  const maxDay = useMemo(() => {
-    if (contributions.length === 0) return null
-    return contributions.reduce((best, day) =>
-      day.count > best.count ? day : best
-    )
-  }, [contributions])
 
   const loadProfile = useCallback(async (rawInput: string) => {
     const username = parseGitHubUsername(rawInput)
@@ -57,6 +65,7 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
 
     setError(null)
     setLoading(true)
+    setProfile(null)
 
     try {
       const response = await fetch(
@@ -70,7 +79,7 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
 
       setProfile(payload as ContributionResult)
       setInput(username)
-      setLeaderboardKey((current) => current + 1)
+      lastLoadedRef.current = username
     } catch (fetchError) {
       setProfile(null)
       setError(
@@ -86,14 +95,25 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
   useEffect(() => {
     if (initialUsername) {
       setInput(initialUsername)
+      return
     }
-  }, [initialUsername])
+
+    if (queryUser) {
+      setInput(queryUser)
+    }
+  }, [initialUsername, queryUser])
 
   useEffect(() => {
-    if (!activeUsername) return
-    setProfile(null)
-    void loadProfile(activeUsername)
-  }, [activeUsername, loadProfile])
+    if (!initialUsername) return
+
+    if (
+      lastLoadedRef.current?.toLowerCase() === initialUsername.toLowerCase()
+    ) {
+      return
+    }
+
+    void loadProfile(initialUsername)
+  }, [initialUsername, loadProfile])
 
   useEffect(() => {
     if (initialUsername) return
@@ -105,7 +125,41 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
     router.replace(`/${username}`)
   }, [initialUsername, queryUser, router])
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    setCopiedShareUrl(false)
+    if (copyResetRef.current) {
+      clearTimeout(copyResetRef.current)
+      copyResetRef.current = null
+    }
+  }, [profile?.username])
+
+  useEffect(() => {
+    return () => {
+      if (copyResetRef.current) {
+        clearTimeout(copyResetRef.current)
+      }
+    }
+  }, [])
+
+  async function handleShareProfile() {
+    if (!profile) return
+
+    const shareUrl = `${window.location.origin}/${profile.username}`
+
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      setCopiedShareUrl(true)
+      if (copyResetRef.current) clearTimeout(copyResetRef.current)
+      copyResetRef.current = setTimeout(() => setCopiedShareUrl(false), 2000)
+    } catch {
+      setError("Could not copy the share link. Please copy it manually.")
+    }
+  }
+
+  async function handleSubmit(
+    event: FormEvent<HTMLFormElement>,
+    closeMenu?: () => void
+  ) {
     event.preventDefault()
 
     const username = parseGitHubUsername(input.trim())
@@ -114,8 +168,16 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
       return
     }
 
-    setQueryUser(null)
-    router.push(`/${username}`)
+    setError(null)
+    void setQueryUser(null)
+
+    const targetPath = `/${username}`
+    if (pathname !== targetPath) {
+      router.push(targetPath)
+    }
+
+    await loadProfile(username)
+    closeMenu?.()
   }
 
   return (
@@ -123,6 +185,15 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
       <div className="absolute inset-0">
         {profile ? (
           <ContributionScene key={profile.username} data={contributions} />
+        ) : loading ? (
+          <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-sm text-emerald-100/60">
+            <Loader2 className="size-6 animate-spin text-emerald-300" />
+            <p>
+              Loading @
+              {parseGitHubUsername(input.trim()) ?? input.trim()}&apos;s
+              contribution terrain...
+            </p>
+          </div>
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center text-sm text-emerald-100/60">
             <p>Enter a GitHub profile to render their contribution terrain.</p>
@@ -133,90 +204,53 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
         )}
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 p-3 sm:p-4">
-        <div className="pointer-events-auto flex w-full max-w-xl flex-col gap-3 border border-emerald-300/15 bg-black/45 p-3 text-white shadow-2xl shadow-black/30 backdrop-blur-sm">
-          <div>
-            <h1 className="text-base font-medium tracking-tight sm:text-lg">
-              Isometric Contribution Graph
-            </h1>
-            <p className="mt-1 text-xs leading-relaxed text-emerald-100/65 sm:text-sm">
-              Paste a GitHub username or profile link. Shareable URLs look like
-              /theorcdev or /radiumcoders.
-            </p>
-          </div>
-
-          <form
-            onSubmit={handleSubmit}
-            className="flex flex-col gap-2 sm:flex-row sm:items-center"
-          >
-            <Input
-              type="text"
-              placeholder="octocat or https://github.com/octocat"
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              disabled={loading}
-              aria-invalid={!!error}
-              className="h-9 rounded-none border-emerald-100/20 bg-white/95 text-black placeholder:text-black/50 sm:flex-1"
+      <SidebarMenu defaultOpen={!profile && !initialUsername}>
+        {({ closeMenu }) => (
+          <>
+            <SearchPanel
+              input={input}
+              loading={loading}
+              error={error}
+              onInputChange={setInput}
+              onSubmit={(event) => void handleSubmit(event, closeMenu)}
             />
-            <Button
-              type="submit"
-              disabled={loading || !input.trim()}
-              className="h-9 rounded-none bg-emerald-400 text-black hover:bg-emerald-300"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="animate-spin" data-icon="inline-start" />
-                  Loading
-                </>
-              ) : (
-                "Show graph"
-              )}
-            </Button>
-          </form>
 
-          {error ? <p className="text-sm text-red-300">{error}</p> : null}
-
-          {profile ? (
-            <div className="flex flex-wrap items-center gap-3">
-              <Image
-                src={profile.avatarUrl}
-                alt={`${profile.username} avatar`}
-                width={32}
-                height={32}
-                unoptimized
-                className="size-8 rounded-none ring-1 ring-emerald-100/20"
+            {profile ? (
+              <ProfileAnalysisPanel
+                profile={profile}
+                contributions={contributions}
               />
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary">
-                  @{profile.username}
-                  {profile.name ? ` - ${profile.name}` : ""}
-                </Badge>
-                <Badge variant="secondary">
-                  {profile.totalContributions.toLocaleString()} contributions
-                </Badge>
-                {maxDay && maxDay.count > 0 ? (
-                  <Badge
-                    variant="outline"
-                    className="border-emerald-100/25 text-emerald-50/85"
-                  >
-                    Peak: {maxDay.count} on {maxDay.date}
-                  </Badge>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
-        </div>
+            ) : null}
 
-        {profile ? (
-          <p className="pointer-events-auto mt-2 max-w-xl text-xs text-emerald-100/55">
-            Drag to rotate - Scroll to zoom - Height is 1 unit per contribution
-          </p>
-        ) : null}
-      </div>
+            {profile ? (
+              <p className="text-xs text-emerald-100/55">
+                Drag to rotate - Scroll to zoom - Height is 1 unit per contribution
+              </p>
+            ) : null}
 
-      <div className="pointer-events-none absolute right-0 bottom-0 z-10 w-full max-w-xs p-3 sm:p-4">
-        <Leaderboard refreshKey={leaderboardKey} />
-      </div>
+            {profile ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void handleShareProfile()}
+                className="h-9 w-full rounded-none border-emerald-100/25 bg-transparent text-emerald-50 hover:bg-emerald-400/10 hover:text-emerald-50"
+              >
+                {copiedShareUrl ? (
+                  <>
+                    <Check data-icon="inline-start" />
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <Share2 data-icon="inline-start" />
+                    Share profile
+                  </>
+                )}
+              </Button>
+            ) : null}
+          </>
+        )}
+      </SidebarMenu>
     </section>
   )
 }
