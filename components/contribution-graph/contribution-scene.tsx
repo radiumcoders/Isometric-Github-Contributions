@@ -1,8 +1,8 @@
 "use client"
 
 import { OrbitControls, OrthographicCamera } from "@react-three/drei"
-import { Canvas, useFrame } from "@react-three/fiber"
-import { useCallback, useLayoutEffect, useMemo, useRef } from "react"
+import { Canvas, useFrame, useThree } from "@react-three/fiber"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react"
 import * as THREE from "three"
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js"
 
@@ -15,6 +15,29 @@ import {
 
 type ContributionSceneProps = {
   data: ContributionDay[]
+  onCaptureReady?: (capture: () => Promise<Blob | null>) => void
+}
+
+function SceneCapture({
+  onCaptureReady,
+}: {
+  onCaptureReady?: (capture: () => Promise<Blob | null>) => void
+}) {
+  const { gl, scene, camera } = useThree()
+
+  useEffect(() => {
+    if (!onCaptureReady) return
+
+    const capture = () =>
+      new Promise<Blob | null>((resolve) => {
+        gl.render(scene, camera)
+        gl.domElement.toBlob((blob) => resolve(blob), "image/png", 1)
+      })
+
+    onCaptureReady(capture)
+  }, [camera, gl, onCaptureReady, scene])
+
+  return null
 }
 
 const MIN_BAR_HEIGHT = 0.04
@@ -274,12 +297,15 @@ function SceneCamera({
   )
 }
 
-export function ContributionScene({ data }: ContributionSceneProps) {
+export function ContributionScene({
+  data,
+  onCaptureReady,
+}: ContributionSceneProps) {
   return (
     <Canvas
       shadows="soft"
       className="h-full w-full"
-      gl={{ antialias: true }}
+      gl={{ antialias: true, preserveDrawingBuffer: true }}
       dpr={[1, 2]}
       onCreated={({ gl }) => {
         gl.toneMapping = THREE.ACESFilmicToneMapping
@@ -307,6 +333,7 @@ export function ContributionScene({ data }: ContributionSceneProps) {
       <directionalLight position={[-24, 18, -18]} intensity={0.8} />
       <directionalLight position={[0, 22, -28]} intensity={0.95} />
 
+      <SceneCapture onCaptureReady={onCaptureReady} />
       <ContributionBars data={data} />
     </Canvas>
   )
