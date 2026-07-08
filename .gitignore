@@ -18,6 +18,9 @@
 # production
 /build
 
+# runtime data
+/data/search-history.json
+
 # misc
 .DS_Store
 *.pem

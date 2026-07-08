@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 
 import { fetchGitHubContributions, parseGitHubUsername } from "@/lib/github"
+import { recordSearch } from "@/lib/search-history"
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -16,6 +17,7 @@ export async function GET(request: Request) {
 
   try {
     const result = await fetchGitHubContributions(username)
+    await recordSearch(result)
     return NextResponse.json(result)
   } catch (error) {
     const message =

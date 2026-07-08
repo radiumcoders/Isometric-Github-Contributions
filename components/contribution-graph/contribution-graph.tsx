@@ -3,12 +3,16 @@
 import { Loader2 } from "lucide-react"
 import dynamic from "next/dynamic"
 import Image from "next/image"
-import { FormEvent, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
+import { parseAsString, useQueryState } from "nuqs"
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react"
 
+import { Leaderboard } from "@/components/leaderboard"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import type { ContributionResult } from "@/lib/github"
+import { parseGitHubUsername } from "@/lib/github"
 
 const ContributionScene = dynamic(
   () =>
@@ -16,11 +20,23 @@ const ContributionScene = dynamic(
   { ssr: false }
 )
 
-export function ContributionGraph() {
-  const [input, setInput] = useState("")
+type ContributionGraphProps = {
+  initialUsername?: string
+}
+
+export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
+  const router = useRouter()
+  const [queryUser, setQueryUser] = useQueryState(
+    "user",
+    parseAsString.withDefault("")
+  )
+  const [input, setInput] = useState(initialUsername ?? queryUser ?? "")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [profile, setProfile] = useState<ContributionResult | null>(null)
+  const [leaderboardKey, setLeaderboardKey] = useState(0)
+
+  const activeUsername = initialUsername ?? queryUser ?? null
 
   const contributions = useMemo(() => profile?.data ?? [], [profile?.data])
 
@@ -31,14 +47,20 @@ export function ContributionGraph() {
     )
   }, [contributions])
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  const loadProfile = useCallback(async (rawInput: string) => {
+    const username = parseGitHubUsername(rawInput)
+    if (!username) {
+      setProfile(null)
+      setError("Enter a valid GitHub username or profile link.")
+      return
+    }
+
     setError(null)
     setLoading(true)
 
     try {
       const response = await fetch(
-        `/api/contributions?user=${encodeURIComponent(input.trim())}`
+        `/api/contributions?user=${encodeURIComponent(username)}`
       )
       const payload = await response.json()
 
@@ -47,6 +69,8 @@ export function ContributionGraph() {
       }
 
       setProfile(payload as ContributionResult)
+      setInput(username)
+      setLeaderboardKey((current) => current + 1)
     } catch (fetchError) {
       setProfile(null)
       setError(
@@ -57,6 +81,41 @@ export function ContributionGraph() {
     } finally {
       setLoading(false)
     }
+  }, [])
+
+  useEffect(() => {
+    if (initialUsername) {
+      setInput(initialUsername)
+    }
+  }, [initialUsername])
+
+  useEffect(() => {
+    if (!activeUsername) return
+    setProfile(null)
+    void loadProfile(activeUsername)
+  }, [activeUsername, loadProfile])
+
+  useEffect(() => {
+    if (initialUsername) return
+    if (!queryUser) return
+
+    const username = parseGitHubUsername(queryUser)
+    if (!username) return
+
+    router.replace(`/${username}`)
+  }, [initialUsername, queryUser, router])
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    const username = parseGitHubUsername(input.trim())
+    if (!username) {
+      setError("Enter a valid GitHub username or profile link.")
+      return
+    }
+
+    setQueryUser(null)
+    router.push(`/${username}`)
   }
 
   return (
@@ -68,7 +127,7 @@ export function ContributionGraph() {
           <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center text-sm text-emerald-100/60">
             <p>Enter a GitHub profile to render their contribution terrain.</p>
             <p className="text-xs text-emerald-100/40">
-              Try &quot;torvalds&quot; to start.
+              Try &quot;torvalds&quot; or share a link like /theorcdev
             </p>
           </div>
         )}
@@ -81,8 +140,8 @@ export function ContributionGraph() {
               Isometric Contribution Graph
             </h1>
             <p className="mt-1 text-xs leading-relaxed text-emerald-100/65 sm:text-sm">
-              Paste a GitHub username or profile link. Each square&apos;s height
-              equals that day&apos;s contribution count.
+              Paste a GitHub username or profile link. Shareable URLs look like
+              /theorcdev or /radiumcoders.
             </p>
           </div>
 
@@ -115,9 +174,7 @@ export function ContributionGraph() {
             </Button>
           </form>
 
-          {error ? (
-            <p className="text-sm text-red-300">{error}</p>
-          ) : null}
+          {error ? <p className="text-sm text-red-300">{error}</p> : null}
 
           {profile ? (
             <div className="flex flex-wrap items-center gap-3">
@@ -155,6 +212,10 @@ export function ContributionGraph() {
             Drag to rotate - Scroll to zoom - Height is 1 unit per contribution
           </p>
         ) : null}
+      </div>
+
+      <div className="pointer-events-none absolute right-0 bottom-0 z-10 w-full max-w-xs p-3 sm:p-4">
+        <Leaderboard refreshKey={leaderboardKey} />
       </div>
     </section>
   )
