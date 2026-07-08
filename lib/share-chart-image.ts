@@ -1,4 +1,3 @@
-import { cropChartImage } from "@/lib/crop-chart-image"
 import type { ContributionDay } from "@/lib/contribution-data"
 import type { ContributionResult } from "@/lib/github"
 import { analyzeProfile } from "@/lib/profile-analysis"
@@ -65,11 +64,9 @@ function drawStatRow(
   y: number,
   width: number,
   label: string,
-  value: string,
-  scale: number
+  value: string
 ) {
-  const rowHeight = Math.round(28 * scale)
-  const fontSize = Math.round(11 * scale)
+  const rowHeight = 28
 
   ctx.strokeStyle = BORDER
   ctx.beginPath()
@@ -78,17 +75,17 @@ function drawStatRow(
   ctx.stroke()
 
   ctx.fillStyle = TEXT_MUTED
-  ctx.font = `${fontSize}px system-ui, sans-serif`
+  ctx.font = "11px system-ui, sans-serif"
   ctx.textAlign = "left"
   ctx.textBaseline = "top"
-  ctx.fillText(label, x, y + Math.round(6 * scale))
+  ctx.fillText(label, x, y + 6)
 
   ctx.fillStyle = TEXT_PRIMARY
-  ctx.font = `${fontSize}px system-ui, sans-serif`
+  ctx.font = "11px system-ui, sans-serif"
   ctx.textAlign = "right"
   const valueText =
     value.length > 24 ? `${value.slice(0, 21)}...` : value
-  ctx.fillText(valueText, x + width, y + Math.round(6 * scale))
+  ctx.fillText(valueText, x + width, y + 6)
 
   return rowHeight
 }
@@ -103,8 +100,7 @@ async function drawAnalyticsPanel(
   contributions: ContributionDay[]
 ) {
   const analysis = analyzeProfile(contributions)
-  const scale = width / ANALYTICS_PANEL_WIDTH
-  const padding = Math.round(16 * scale)
+  const padding = 16
 
   ctx.fillStyle = BACKGROUND
   ctx.fillRect(x, y, width, height)
@@ -116,44 +112,36 @@ async function drawAnalyticsPanel(
 
   try {
     const avatar = await loadImage(profile.avatarUrl)
-    const avatarSize = Math.round(48 * scale)
+    const avatarSize = 48
     ctx.drawImage(avatar, x + padding, cursorY, avatarSize, avatarSize)
     ctx.strokeStyle = BORDER
     ctx.strokeRect(x + padding, cursorY, avatarSize, avatarSize)
 
     ctx.fillStyle = TEXT_PRIMARY
-    ctx.font = `600 ${Math.round(13 * scale)}px system-ui, sans-serif`
+    ctx.font = "600 13px system-ui, sans-serif"
     ctx.textAlign = "left"
     ctx.textBaseline = "top"
-    ctx.fillText(
-      `@${profile.username}`,
-      x + padding + avatarSize + Math.round(12 * scale),
-      cursorY + Math.round(4 * scale)
-    )
+    ctx.fillText(`@${profile.username}`, x + padding + avatarSize + 12, cursorY + 4)
 
     if (profile.name) {
       ctx.fillStyle = TEXT_MUTED
-      ctx.font = `${Math.round(11 * scale)}px system-ui, sans-serif`
-      ctx.fillText(
-        profile.name,
-        x + padding + avatarSize + Math.round(12 * scale),
-        cursorY + Math.round(24 * scale)
-      )
+      ctx.font = "11px system-ui, sans-serif"
+      ctx.fillText(profile.name, x + padding + avatarSize + 12, cursorY + 24)
     }
 
-    cursorY += avatarSize + Math.round(20 * scale)
+    cursorY += avatarSize + 20
   } catch {
     ctx.fillStyle = TEXT_PRIMARY
-    ctx.font = `600 ${Math.round(13 * scale)}px system-ui, sans-serif`
+    ctx.font = "600 13px system-ui, sans-serif"
     ctx.textAlign = "left"
     ctx.fillText(`@${profile.username}`, x + padding, cursorY)
-    cursorY += Math.round(28 * scale)
+    cursorY += 28
   }
 
   ctx.fillStyle = "rgba(110, 231, 183, 0.9)"
-  ctx.font = `600 ${Math.round(10 * scale)}px system-ui, sans-serif`
+  ctx.font = "600 10px system-ui, sans-serif"
   ctx.fillText("PROFILE ANALYSIS", x + padding, cursorY)
-  cursorY += Math.round(18 * scale)
+  cursorY += 18
 
   const rowWidth = width - padding * 2
   const rows: Array<[string, string]> = [
@@ -200,8 +188,7 @@ async function drawAnalyticsPanel(
       cursorY,
       rowWidth,
       label,
-      value,
-      scale
+      value
     )
   }
 }
@@ -213,20 +200,10 @@ export async function buildChartExportImage({
   includeAnalytics,
 }: BuildChartImageOptions): Promise<Blob> {
   const chartImage = await blobToImage(chartBlob)
-  const croppedChart = cropChartImage(chartImage)
-  const analyticsWidth = includeAnalytics
-    ? Math.max(
-        ANALYTICS_PANEL_WIDTH,
-        Math.round(croppedChart.height * 0.24)
-      )
-    : 0
-  const contentWidth = analyticsWidth + croppedChart.width
-  const contentHeight = croppedChart.height
-  const watermarkHeight = Math.max(
-    WATERMARK_HEIGHT,
-    Math.round(contentWidth * 0.028)
-  )
-  const totalHeight = contentHeight + watermarkHeight
+  const analyticsWidth = includeAnalytics ? ANALYTICS_PANEL_WIDTH : 0
+  const contentWidth = analyticsWidth + chartImage.width
+  const contentHeight = chartImage.height
+  const totalHeight = contentHeight + WATERMARK_HEIGHT
 
   const canvas = document.createElement("canvas")
   canvas.width = contentWidth
@@ -252,9 +229,7 @@ export async function buildChartExportImage({
     )
   }
 
-  ctx.imageSmoothingEnabled = true
-  ctx.imageSmoothingQuality = "high"
-  ctx.drawImage(croppedChart, analyticsWidth, 0)
+  ctx.drawImage(chartImage, analyticsWidth, 0)
 
   ctx.strokeStyle = BORDER
   ctx.beginPath()
@@ -263,13 +238,13 @@ export async function buildChartExportImage({
   ctx.stroke()
 
   ctx.fillStyle = "rgba(167, 243, 208, 0.55)"
-  ctx.font = `${Math.max(12, Math.round(contentWidth * 0.014))}px system-ui, sans-serif`
+  ctx.font = "12px system-ui, sans-serif"
   ctx.textAlign = "center"
   ctx.textBaseline = "middle"
   ctx.fillText(
     WATERMARK_TEXT,
     contentWidth / 2,
-    contentHeight + watermarkHeight / 2
+    contentHeight + WATERMARK_HEIGHT / 2
   )
 
   return canvasToBlob(canvas)

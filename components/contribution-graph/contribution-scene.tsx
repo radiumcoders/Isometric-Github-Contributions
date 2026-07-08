@@ -18,54 +18,24 @@ type ContributionSceneProps = {
   onCaptureReady?: (capture: () => Promise<Blob | null>) => void
 }
 
-const EXPORT_SCALE = 3
-const MAX_EXPORT_DIMENSION = 4096
-
 function SceneCapture({
   onCaptureReady,
 }: {
   onCaptureReady?: (capture: () => Promise<Blob | null>) => void
 }) {
-  const { gl, scene, camera, size } = useThree()
+  const { gl, scene, camera } = useThree()
 
   useEffect(() => {
     if (!onCaptureReady) return
 
     const capture = () =>
       new Promise<Blob | null>((resolve) => {
-        const previousPixelRatio = gl.getPixelRatio()
-        const exportWidth = Math.min(
-          MAX_EXPORT_DIMENSION,
-          Math.round(size.width * EXPORT_SCALE)
-        )
-        const exportHeight = Math.min(
-          MAX_EXPORT_DIMENSION,
-          Math.round(size.height * EXPORT_SCALE)
-        )
-
-        gl.setPixelRatio(1)
-        gl.setSize(exportWidth, exportHeight, false)
-
-        if (camera instanceof THREE.OrthographicCamera) {
-          camera.updateProjectionMatrix()
-        }
-
         gl.render(scene, camera)
-        gl.domElement.toBlob((blob) => {
-          gl.setPixelRatio(previousPixelRatio)
-          gl.setSize(size.width, size.height)
-
-          if (camera instanceof THREE.OrthographicCamera) {
-            camera.updateProjectionMatrix()
-          }
-
-          gl.render(scene, camera)
-          resolve(blob)
-        }, "image/png", 1)
+        gl.domElement.toBlob((blob) => resolve(blob), "image/png", 1)
       })
 
     onCaptureReady(capture)
-  }, [camera, gl, onCaptureReady, scene, size.height, size.width])
+  }, [camera, gl, onCaptureReady, scene])
 
   return null
 }
