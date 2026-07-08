@@ -1,4 +1,4 @@
-import { ContributionGraph } from "@/components/contribution-graph/contribution-graph"
+import { ContributionGraphLoader } from "@/components/contribution-graph/contribution-graph-loader"
 import { parseGitHubUsername } from "@/lib/github"
 import { notFound } from "next/navigation"
 
@@ -16,7 +16,7 @@ export default async function UserPage({ params }: UserPageProps) {
 
   return (
     <main className="h-svh overflow-hidden bg-[#010409] text-white">
-      <ContributionGraph initialUsername={parsed} />
+      <ContributionGraphLoader initialUsername={parsed} />
     </main>
   )
 }
