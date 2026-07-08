@@ -5,7 +5,14 @@ import dynamic from "next/dynamic"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { parseAsString, useQueryState } from "nuqs"
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react"
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 
 import { Leaderboard } from "@/components/leaderboard"
 import { Badge } from "@/components/ui/badge"
@@ -43,8 +50,7 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
   const [error, setError] = useState<string | null>(null)
   const [profile, setProfile] = useState<ContributionResult | null>(null)
   const [leaderboardKey, setLeaderboardKey] = useState(0)
-
-  const activeUsername = initialUsername ?? queryUser ?? null
+  const lastLoadedRef = useRef<string | null>(null)
 
   const contributions = useMemo(() => profile?.data ?? [], [profile?.data])
 
@@ -65,6 +71,7 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
 
     setError(null)
     setLoading(true)
+    setProfile(null)
 
     try {
       const response = await fetch(
@@ -78,6 +85,7 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
 
       setProfile(payload as ContributionResult)
       setInput(username)
+      lastLoadedRef.current = username
       setLeaderboardKey((current) => current + 1)
     } catch (fetchError) {
       setProfile(null)
@@ -92,16 +100,18 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
   }, [])
 
   useEffect(() => {
-    if (initialUsername) {
-      setInput(initialUsername)
-    }
-  }, [initialUsername])
+    if (!initialUsername) return
 
-  useEffect(() => {
-    if (!activeUsername) return
-    setProfile(null)
-    void loadProfile(activeUsername)
-  }, [activeUsername, loadProfile])
+    setInput(initialUsername)
+
+    if (
+      lastLoadedRef.current?.toLowerCase() === initialUsername.toLowerCase()
+    ) {
+      return
+    }
+
+    void loadProfile(initialUsername)
+  }, [initialUsername, loadProfile])
 
   useEffect(() => {
     if (initialUsername) return
@@ -123,7 +133,13 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
     }
 
     setQueryUser(null)
-    router.push(`/${username}`)
+
+    const targetPath = `/${username}`
+    if (window.location.pathname !== targetPath) {
+      router.push(targetPath)
+    }
+
+    await loadProfile(username)
   }
 
   return (
@@ -131,10 +147,14 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
       <div className="absolute inset-0">
         {profile ? (
           <ContributionScene key={profile.username} data={contributions} />
-        ) : loading && activeUsername ? (
+        ) : loading ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-sm text-emerald-100/60">
             <Loader2 className="size-6 animate-spin text-emerald-300" />
-            <p>Loading @{activeUsername}&apos;s contribution terrain...</p>
+            <p>
+              Loading @
+              {parseGitHubUsername(input.trim()) ?? input.trim()}&apos;s
+              contribution terrain...
+            </p>
           </div>
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center text-sm text-emerald-100/60">
