@@ -15,6 +15,7 @@ import {
 
 import { ProfileAnalysisPanel } from "@/components/profile-analysis"
 import { SearchPanel } from "@/components/search-panel"
+import { SidebarMenu } from "@/components/sidebar-menu"
 import type { ContributionResult } from "@/lib/github"
 import { parseGitHubUsername } from "@/lib/github"
 
@@ -154,7 +155,10 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
     }
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(
+    event: FormEvent<HTMLFormElement>,
+    closeMenu?: () => void
+  ) {
     event.preventDefault()
 
     const username = parseGitHubUsername(input.trim())
@@ -172,6 +176,7 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
     }
 
     await loadProfile(username)
+    closeMenu?.()
   }
 
   return (
@@ -198,32 +203,34 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
         )}
       </div>
 
-      <div className="pointer-events-none absolute top-0 left-0 bottom-0 z-10 flex w-full max-w-xs justify-start p-3 sm:p-4">
-        <aside className="pointer-events-auto flex max-h-[calc(100svh-1.5rem)] w-full flex-col gap-4 overflow-y-auto border border-emerald-300/15 bg-black/55 p-3 text-white shadow-2xl shadow-black/30 backdrop-blur-sm sm:max-h-[calc(100svh-2rem)] sm:p-4">
-          <SearchPanel
-            input={input}
-            loading={loading}
-            error={error}
-            onInputChange={setInput}
-            onSubmit={handleSubmit}
-          />
-
-          {profile ? (
-            <ProfileAnalysisPanel
-              profile={profile}
-              contributions={contributions}
-              copiedShareUrl={copiedShareUrl}
-              onShare={() => void handleShareProfile()}
+      <SidebarMenu defaultOpen={!profile && !initialUsername}>
+        {({ closeMenu }) => (
+          <>
+            <SearchPanel
+              input={input}
+              loading={loading}
+              error={error}
+              onInputChange={setInput}
+              onSubmit={(event) => void handleSubmit(event, closeMenu)}
             />
-          ) : null}
 
-          {profile ? (
-            <p className="text-xs text-emerald-100/55">
-              Drag to rotate - Scroll to zoom - Height is 1 unit per contribution
-            </p>
-          ) : null}
-        </aside>
-      </div>
+            {profile ? (
+              <ProfileAnalysisPanel
+                profile={profile}
+                contributions={contributions}
+                copiedShareUrl={copiedShareUrl}
+                onShare={() => void handleShareProfile()}
+              />
+            ) : null}
+
+            {profile ? (
+              <p className="text-xs text-emerald-100/55">
+                Drag to rotate - Scroll to zoom - Height is 1 unit per contribution
+              </p>
+            ) : null}
+          </>
+        )}
+      </SidebarMenu>
     </section>
   )
 }
