@@ -107,12 +107,6 @@ The 3D graph is published as a reusable [shadcn/ui](https://ui.shadcn.com) block
 npx shadcn@latest add radiumcoders/Isometric-Github-Contributions/isometric-contribution-graph
 ```
 
-Or with the configured namespace:
-
-```bash
-npx shadcn@latest add @isometric-github-contributions/isometric-contribution-graph
-```
-
 ### Basic usage
 
 ```tsx
