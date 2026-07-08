@@ -1,6 +1,6 @@
 "use client"
 
-import { Loader2 } from "lucide-react"
+import { Check, Loader2, Share2 } from "lucide-react"
 import dynamic from "next/dynamic"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
@@ -51,7 +51,9 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
   const [error, setError] = useState<string | null>(null)
   const [profile, setProfile] = useState<ContributionResult | null>(null)
   const [leaderboardKey, setLeaderboardKey] = useState(0)
+  const [copiedShareUrl, setCopiedShareUrl] = useState(false)
   const lastLoadedRef = useRef<string | null>(null)
+  const copyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const contributions = useMemo(() => profile?.data ?? [], [profile?.data])
 
@@ -132,6 +134,37 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
 
     router.replace(`/${username}`)
   }, [initialUsername, queryUser, router])
+
+  useEffect(() => {
+    setCopiedShareUrl(false)
+    if (copyResetRef.current) {
+      clearTimeout(copyResetRef.current)
+      copyResetRef.current = null
+    }
+  }, [profile?.username])
+
+  useEffect(() => {
+    return () => {
+      if (copyResetRef.current) {
+        clearTimeout(copyResetRef.current)
+      }
+    }
+  }, [])
+
+  async function handleShareProfile() {
+    if (!profile) return
+
+    const shareUrl = `${window.location.origin}/${profile.username}`
+
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      setCopiedShareUrl(true)
+      if (copyResetRef.current) clearTimeout(copyResetRef.current)
+      copyResetRef.current = setTimeout(() => setCopiedShareUrl(false), 2000)
+    } catch {
+      setError("Could not copy the share link. Please copy it manually.")
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -230,7 +263,7 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
                 unoptimized
                 className="size-8 rounded-none ring-1 ring-emerald-100/20"
               />
-              <div className="flex flex-wrap gap-2">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                 <Badge variant="secondary">
                   @{profile.username}
                   {profile.name ? ` - ${profile.name}` : ""}
@@ -246,6 +279,25 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
                     Peak: {maxDay.count} on {maxDay.date}
                   </Badge>
                 ) : null}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void handleShareProfile()}
+                  className="h-7 rounded-none border-emerald-100/25 bg-transparent text-emerald-50 hover:bg-emerald-400/10 hover:text-emerald-50"
+                >
+                  {copiedShareUrl ? (
+                    <>
+                      <Check data-icon="inline-start" />
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <Share2 data-icon="inline-start" />
+                      Share
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
           ) : null}
