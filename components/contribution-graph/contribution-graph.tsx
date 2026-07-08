@@ -14,7 +14,6 @@ import {
   useState,
 } from "react"
 
-import { Leaderboard } from "@/components/leaderboard"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -50,7 +49,6 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [profile, setProfile] = useState<ContributionResult | null>(null)
-  const [leaderboardKey, setLeaderboardKey] = useState(0)
   const [copiedShareUrl, setCopiedShareUrl] = useState(false)
   const lastLoadedRef = useRef<string | null>(null)
   const copyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -89,7 +87,6 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
       setProfile(payload as ContributionResult)
       setInput(username)
       lastLoadedRef.current = username
-      setLeaderboardKey((current) => current + 1)
     } catch (fetchError) {
       setProfile(null)
       setError(
@@ -308,10 +305,6 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
             Drag to rotate - Scroll to zoom - Height is 1 unit per contribution
           </p>
         ) : null}
-      </div>
-
-      <div className="pointer-events-none absolute right-0 bottom-0 z-10 w-full max-w-xs p-3 sm:p-4">
-        <Leaderboard refreshKey={leaderboardKey} />
       </div>
     </section>
   )
