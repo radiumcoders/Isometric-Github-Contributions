@@ -1,6 +1,6 @@
 "use client"
 
-import { Check, ImageIcon, Loader2, Share2 } from "lucide-react"
+import { Check, Download, Loader2, Share2 } from "lucide-react"
 import dynamic from "next/dynamic"
 import { usePathname, useRouter } from "next/navigation"
 import { parseAsString, useQueryState } from "nuqs"
@@ -20,8 +20,8 @@ import { Button } from "@/components/ui/button"
 import type { ContributionResult } from "@/lib/github"
 import { parseGitHubUsername } from "@/lib/github"
 import {
-  type ChartImageShareResult,
-  shareChartImage,
+  type ChartImageExportResult,
+  exportChartImage,
 } from "@/lib/share-chart-image"
 
 const ContributionScene = dynamic(
@@ -54,9 +54,9 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
   const [error, setError] = useState<string | null>(null)
   const [profile, setProfile] = useState<ContributionResult | null>(null)
   const [copiedShareUrl, setCopiedShareUrl] = useState(false)
-  const [sharingChartImage, setSharingChartImage] = useState(false)
-  const [chartImageShareResult, setChartImageShareResult] =
-    useState<ChartImageShareResult | null>(null)
+  const [exportingChartImage, setExportingChartImage] = useState(false)
+  const [chartImageExportResult, setChartImageExportResult] =
+    useState<ChartImageExportResult | null>(null)
   const lastLoadedRef = useRef<string | null>(null)
   const copyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const chartShareResetRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -143,7 +143,7 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
 
   useEffect(() => {
     setCopiedShareUrl(false)
-    setChartImageShareResult(null)
+    setChartImageExportResult(null)
     captureSceneRef.current = null
     if (copyResetRef.current) {
       clearTimeout(copyResetRef.current)
@@ -166,7 +166,7 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
     }
   }, [])
 
-  async function handleShareChartImage() {
+  async function handleExportChartImage() {
     if (!profile) return
 
     const capture = captureSceneRef.current
@@ -175,8 +175,8 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
       return
     }
 
-    setSharingChartImage(true)
-    setChartImageShareResult(null)
+    setExportingChartImage(true)
+    setChartImageExportResult(null)
 
     try {
       const blob = await capture()
@@ -184,21 +184,17 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
         throw new Error("Failed to capture chart image.")
       }
 
-      const result = await shareChartImage(blob, profile.username)
-      setChartImageShareResult(result)
+      const result = await exportChartImage(blob, profile.username)
+      setChartImageExportResult(result)
       if (chartShareResetRef.current) clearTimeout(chartShareResetRef.current)
       chartShareResetRef.current = setTimeout(
-        () => setChartImageShareResult(null),
+        () => setChartImageExportResult(null),
         2000
       )
-    } catch (shareError) {
-      if (shareError instanceof Error && shareError.name === "AbortError") {
-        return
-      }
-
-      setError("Could not share the chart image. Please try again.")
+    } catch {
+      setError("Could not save the chart image. Please try again.")
     } finally {
-      setSharingChartImage(false)
+      setExportingChartImage(false)
     }
   }
 
@@ -298,11 +294,11 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={sharingChartImage}
-                  onClick={() => void handleShareChartImage()}
+                  disabled={exportingChartImage}
+                  onClick={() => void handleExportChartImage()}
                   className="h-9 w-full rounded-none border-emerald-100/25 bg-transparent text-emerald-50 hover:bg-emerald-400/10 hover:text-emerald-50"
                 >
-                  {sharingChartImage ? (
+                  {exportingChartImage ? (
                     <>
                       <Loader2
                         className="animate-spin"
@@ -310,20 +306,20 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
                       />
                       Capturing chart
                     </>
-                  ) : chartImageShareResult === "shared" ? (
+                  ) : chartImageExportResult === "downloaded-copied" ? (
                     <>
                       <Check data-icon="inline-start" />
-                      Chart shared
+                      Downloaded & copied
                     </>
-                  ) : chartImageShareResult === "downloaded" ? (
+                  ) : chartImageExportResult === "downloaded" ? (
                     <>
                       <Check data-icon="inline-start" />
-                      Chart downloaded
+                      Downloaded
                     </>
                   ) : (
                     <>
-                      <ImageIcon data-icon="inline-start" />
-                      Share chart image
+                      <Download data-icon="inline-start" />
+                      Download chart image
                     </>
                   )}
                 </Button>

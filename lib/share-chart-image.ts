@@ -1,24 +1,10 @@
-export type ChartImageShareResult = "shared" | "downloaded"
+export type ChartImageExportResult = "downloaded-copied" | "downloaded"
 
-export async function shareChartImage(
+export async function exportChartImage(
   blob: Blob,
   username: string
-): Promise<ChartImageShareResult> {
+): Promise<ChartImageExportResult> {
   const filename = `${username}-contributions.png`
-  const file = new File([blob], filename, { type: "image/png" })
-
-  if (
-    typeof navigator.share === "function" &&
-    typeof navigator.canShare === "function" &&
-    navigator.canShare({ files: [file] })
-  ) {
-    await navigator.share({
-      title: `${username} GitHub contributions`,
-      text: `Isometric contribution graph for @${username}`,
-      files: [file],
-    })
-    return "shared"
-  }
 
   const url = URL.createObjectURL(blob)
   const link = document.createElement("a")
@@ -26,5 +12,20 @@ export async function shareChartImage(
   link.download = filename
   link.click()
   URL.revokeObjectURL(url)
+
+  try {
+    if (
+      typeof navigator.clipboard?.write === "function" &&
+      typeof ClipboardItem !== "undefined"
+    ) {
+      await navigator.clipboard.write([
+        new ClipboardItem({ "image/png": blob }),
+      ])
+      return "downloaded-copied"
+    }
+  } catch {
+    // Clipboard copy is best-effort; download already succeeded.
+  }
+
   return "downloaded"
 }
