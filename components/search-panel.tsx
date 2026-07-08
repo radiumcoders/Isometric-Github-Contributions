@@ -10,7 +10,6 @@ type SearchPanelProps = {
   input: string
   loading: boolean
   error: string | null
-  showControlsHint: boolean
   onInputChange: (value: string) => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
 }
@@ -19,12 +18,11 @@ export function SearchPanel({
   input,
   loading,
   error,
-  showControlsHint,
   onInputChange,
   onSubmit,
 }: SearchPanelProps) {
   return (
-    <aside className="pointer-events-auto flex max-h-[calc(100svh-1.5rem)] w-full flex-col gap-4 overflow-y-auto border border-emerald-300/15 bg-black/55 p-3 text-white shadow-2xl shadow-black/30 backdrop-blur-sm sm:max-h-[calc(100svh-2rem)] sm:p-4">
+    <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-base font-medium tracking-tight sm:text-lg">
           Isometric Contribution Graph
@@ -62,12 +60,6 @@ export function SearchPanel({
       </form>
 
       {error ? <p className="text-sm text-red-300">{error}</p> : null}
-
-      {showControlsHint ? (
-        <p className="text-xs text-emerald-100/55">
-          Drag to rotate - Scroll to zoom - Height is 1 unit per contribution
-        </p>
-      ) : null}
-    </aside>
+    </div>
   )
 }

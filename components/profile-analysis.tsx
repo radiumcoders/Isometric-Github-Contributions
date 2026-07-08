@@ -40,7 +40,7 @@ export function ProfileAnalysisPanel({
   )
 
   return (
-    <aside className="pointer-events-auto flex max-h-[calc(100svh-1.5rem)] w-full flex-col gap-4 overflow-y-auto border border-emerald-300/15 bg-black/55 p-3 text-white shadow-2xl shadow-black/30 backdrop-blur-sm sm:max-h-[calc(100svh-2rem)] sm:p-4">
+    <div className="flex flex-col gap-4 border-t border-emerald-100/10 pt-4">
       <div className="flex items-start gap-3">
         <Image
           src={profile.avatarUrl}
@@ -142,6 +142,6 @@ export function ProfileAnalysisPanel({
           </Badge>
         ) : null}
       </div>
-    </aside>
+    </div>
   )
 }
