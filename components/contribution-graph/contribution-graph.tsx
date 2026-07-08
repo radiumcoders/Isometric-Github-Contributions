@@ -1,6 +1,6 @@
 "use client"
 
-import { Check, Loader2, Share2 } from "lucide-react"
+import { Check, Download, Loader2, Share2 } from "lucide-react"
 import dynamic from "next/dynamic"
 import { usePathname, useRouter } from "next/navigation"
 import { parseAsString, useQueryState } from "nuqs"
@@ -19,6 +19,11 @@ import { SidebarMenu } from "@/components/sidebar-menu"
 import { Button } from "@/components/ui/button"
 import type { ContributionResult } from "@/lib/github"
 import { parseGitHubUsername } from "@/lib/github"
+import {
+  buildChartExportImage,
+  type ChartImageExportResult,
+  exportChartImage,
+} from "@/lib/share-chart-image"
 
 const ContributionScene = dynamic(
   () =>
@@ -50,10 +55,24 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
   const [error, setError] = useState<string | null>(null)
   const [profile, setProfile] = useState<ContributionResult | null>(null)
   const [copiedShareUrl, setCopiedShareUrl] = useState(false)
+  const [exportingChartImage, setExportingChartImage] = useState(false)
+  const [includeAnalyticsInExport, setIncludeAnalyticsInExport] =
+    useState(false)
+  const [chartImageExportResult, setChartImageExportResult] =
+    useState<ChartImageExportResult | null>(null)
   const lastLoadedRef = useRef<string | null>(null)
   const copyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const chartShareResetRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const captureSceneRef = useRef<(() => Promise<Blob | null>) | null>(null)
 
   const contributions = useMemo(() => profile?.data ?? [], [profile?.data])
+
+  const handleCaptureReady = useCallback(
+    (capture: () => Promise<Blob | null>) => {
+      captureSceneRef.current = capture
+    },
+    []
+  )
 
   const loadProfile = useCallback(async (rawInput: string) => {
     const username = parseGitHubUsername(rawInput)
@@ -127,9 +146,15 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
 
   useEffect(() => {
     setCopiedShareUrl(false)
+    setChartImageExportResult(null)
+    captureSceneRef.current = null
     if (copyResetRef.current) {
       clearTimeout(copyResetRef.current)
       copyResetRef.current = null
+    }
+    if (chartShareResetRef.current) {
+      clearTimeout(chartShareResetRef.current)
+      chartShareResetRef.current = null
     }
   }, [profile?.username])
 
@@ -138,8 +163,50 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
       if (copyResetRef.current) {
         clearTimeout(copyResetRef.current)
       }
+      if (chartShareResetRef.current) {
+        clearTimeout(chartShareResetRef.current)
+      }
     }
   }, [])
+
+  async function handleExportChartImage() {
+    if (!profile) return
+
+    const capture = captureSceneRef.current
+    if (!capture) {
+      setError("The chart is still loading. Try again in a moment.")
+      return
+    }
+
+    setExportingChartImage(true)
+    setChartImageExportResult(null)
+
+    try {
+      const chartBlob = await capture()
+      if (!chartBlob) {
+        throw new Error("Failed to capture chart image.")
+      }
+
+      const blob = await buildChartExportImage({
+        chartBlob,
+        profile,
+        contributions,
+        includeAnalytics: includeAnalyticsInExport,
+      })
+
+      const result = await exportChartImage(blob, profile.username)
+      setChartImageExportResult(result)
+      if (chartShareResetRef.current) clearTimeout(chartShareResetRef.current)
+      chartShareResetRef.current = setTimeout(
+        () => setChartImageExportResult(null),
+        2000
+      )
+    } catch {
+      setError("Could not save the chart image. Please try again.")
+    } finally {
+      setExportingChartImage(false)
+    }
+  }
 
   async function handleShareProfile() {
     if (!profile) return
@@ -184,7 +251,11 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
     <section className="relative h-full w-full overflow-hidden bg-[#010409]">
       <div className="absolute inset-0">
         {profile ? (
-          <ContributionScene key={profile.username} data={contributions} />
+          <ContributionScene
+            key={profile.username}
+            data={contributions}
+            onCaptureReady={handleCaptureReady}
+          />
         ) : loading ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-sm text-emerald-100/60">
             <Loader2 className="size-6 animate-spin text-emerald-300" />
@@ -229,24 +300,71 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
             ) : null}
 
             {profile ? (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => void handleShareProfile()}
-                className="h-9 w-full rounded-none border-emerald-100/25 bg-transparent text-emerald-50 hover:bg-emerald-400/10 hover:text-emerald-50"
-              >
-                {copiedShareUrl ? (
-                  <>
-                    <Check data-icon="inline-start" />
-                    Copied
-                  </>
-                ) : (
-                  <>
-                    <Share2 data-icon="inline-start" />
-                    Share profile
-                  </>
-                )}
-              </Button>
+              <div className="flex flex-col gap-2">
+                <label className="flex cursor-pointer items-center gap-2.5 text-xs text-emerald-100/70">
+                  <input
+                    type="checkbox"
+                    checked={includeAnalyticsInExport}
+                    onChange={(event) =>
+                      setIncludeAnalyticsInExport(event.target.checked)
+                    }
+                    className="size-4 shrink-0 rounded-none border border-emerald-100/25 accent-emerald-400"
+                  />
+                  Include analytics in image
+                </label>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={exportingChartImage}
+                  onClick={() => void handleExportChartImage()}
+                  className="h-9 w-full rounded-none border-emerald-100/25 bg-transparent text-emerald-50 hover:bg-emerald-400/10 hover:text-emerald-50"
+                >
+                  {exportingChartImage ? (
+                    <>
+                      <Loader2
+                        className="animate-spin"
+                        data-icon="inline-start"
+                      />
+                      Capturing chart
+                    </>
+                  ) : chartImageExportResult === "downloaded-copied" ? (
+                    <>
+                      <Check data-icon="inline-start" />
+                      Downloaded & copied
+                    </>
+                  ) : chartImageExportResult === "downloaded" ? (
+                    <>
+                      <Check data-icon="inline-start" />
+                      Downloaded
+                    </>
+                  ) : (
+                    <>
+                      <Download data-icon="inline-start" />
+                      Download chart image
+                    </>
+                  )}
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void handleShareProfile()}
+                  className="h-9 w-full rounded-none border-emerald-100/25 bg-transparent text-emerald-50 hover:bg-emerald-400/10 hover:text-emerald-50"
+                >
+                  {copiedShareUrl ? (
+                    <>
+                      <Check data-icon="inline-start" />
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <Share2 data-icon="inline-start" />
+                      Share profile
+                    </>
+                  )}
+                </Button>
+              </div>
             ) : null}
           </>
         )}
