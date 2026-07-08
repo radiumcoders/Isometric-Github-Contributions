@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button"
 import type { ContributionResult } from "@/lib/github"
 import { parseGitHubUsername } from "@/lib/github"
 import {
+  buildChartExportImage,
   type ChartImageExportResult,
   exportChartImage,
 } from "@/lib/share-chart-image"
@@ -55,6 +56,8 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
   const [profile, setProfile] = useState<ContributionResult | null>(null)
   const [copiedShareUrl, setCopiedShareUrl] = useState(false)
   const [exportingChartImage, setExportingChartImage] = useState(false)
+  const [includeAnalyticsInExport, setIncludeAnalyticsInExport] =
+    useState(false)
   const [chartImageExportResult, setChartImageExportResult] =
     useState<ChartImageExportResult | null>(null)
   const lastLoadedRef = useRef<string | null>(null)
@@ -179,10 +182,17 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
     setChartImageExportResult(null)
 
     try {
-      const blob = await capture()
-      if (!blob) {
+      const chartBlob = await capture()
+      if (!chartBlob) {
         throw new Error("Failed to capture chart image.")
       }
+
+      const blob = await buildChartExportImage({
+        chartBlob,
+        profile,
+        contributions,
+        includeAnalytics: includeAnalyticsInExport,
+      })
 
       const result = await exportChartImage(blob, profile.username)
       setChartImageExportResult(result)
@@ -291,6 +301,18 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
 
             {profile ? (
               <div className="flex flex-col gap-2">
+                <label className="flex cursor-pointer items-center gap-2.5 text-xs text-emerald-100/70">
+                  <input
+                    type="checkbox"
+                    checked={includeAnalyticsInExport}
+                    onChange={(event) =>
+                      setIncludeAnalyticsInExport(event.target.checked)
+                    }
+                    className="size-4 shrink-0 rounded-none border border-emerald-100/25 accent-emerald-400"
+                  />
+                  Include analytics in image
+                </label>
+
                 <Button
                   type="button"
                   variant="outline"
