@@ -198,7 +198,7 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
         )}
       </div>
 
-      <div className="pointer-events-none absolute top-0 right-0 bottom-0 z-10 flex w-full max-w-xs justify-end p-3 sm:p-4">
+      <div className="pointer-events-none absolute top-0 left-0 bottom-0 z-10 flex w-full max-w-xs justify-start p-3 sm:p-4">
         <aside className="pointer-events-auto flex max-h-[calc(100svh-1.5rem)] w-full flex-col gap-4 overflow-y-auto border border-emerald-300/15 bg-black/55 p-3 text-white shadow-2xl shadow-black/30 backdrop-blur-sm sm:max-h-[calc(100svh-2rem)] sm:p-4">
           <SearchPanel
             input={input}
