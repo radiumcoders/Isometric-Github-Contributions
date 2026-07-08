@@ -99,6 +99,47 @@ GITHUB_TOKEN=ghp_your_token_here
 3. **Share** — Copy the profile link (`/{username}`) from the sidebar.
 4. **Export** — Download a PNG of the current view; toggle *Include analytics in image* to add stats to the export.
 
+## shadcn registry
+
+The 3D graph is published as a reusable [shadcn/ui](https://ui.shadcn.com) block from this repository's GitHub registry.
+
+```bash
+npx shadcn@latest add radiumcoders/Isometric-Github-Contributions/isometric-contribution-graph
+```
+
+Or with the configured namespace:
+
+```bash
+npx shadcn@latest add @isometric-github-contributions/isometric-contribution-graph
+```
+
+### Basic usage
+
+```tsx
+import {
+  IsometricContributionGraph,
+  generateMockContributions,
+} from "@/components/isometric-contribution-graph/isometric-contribution-graph"
+
+export function Demo() {
+  const data = generateMockContributions()
+
+  return (
+    <IsometricContributionGraph
+      data={data}
+      showProfilePanel
+      profile={{
+        username: "octocat",
+        name: "The Octocat",
+        avatarUrl: "https://github.com/octocat.png",
+      }}
+    />
+  )
+}
+```
+
+For a lower-level canvas, import `IsometricContributionScene` and pass a `ContributionDay[]` array directly.
+
 ## Scripts
 
 | Command | Description |
@@ -127,8 +168,10 @@ app/
   page.tsx                  # Landing page with the contribution graph
   [username]/page.tsx       # Shareable profile routes
   api/contributions/        # Server route for fetching contribution data
+registry/
+  blocks/isometric-contribution-graph/  # shadcn registry source files
 components/
-  contribution-graph/       # 3D scene, loader, and graph shell
+  contribution-graph/       # App shell around the registry scene
   profile-analysis.tsx      # Sidebar analytics panel
   search-panel.tsx          # Username search form
   sidebar-menu.tsx          # Collapsible sidebar layout

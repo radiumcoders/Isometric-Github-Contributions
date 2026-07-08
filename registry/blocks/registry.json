@@ -1,0 +1,45 @@
+{
+  "items": [
+    {
+      "name": "isometric-contribution-graph",
+      "type": "registry:block",
+      "title": "Isometric Contribution Graph",
+      "description": "A reusable 3D isometric GitHub contribution graph with optional profile analytics.",
+      "dependencies": [
+        "@react-three/drei",
+        "@react-three/fiber",
+        "three",
+        "lucide-react"
+      ],
+      "registryDependencies": ["badge", "card", "separator"],
+      "files": [
+        {
+          "path": "isometric-contribution-graph/contribution-data.ts",
+          "type": "registry:lib",
+          "target": "lib/contribution-data.ts"
+        },
+        {
+          "path": "isometric-contribution-graph/profile-analysis.ts",
+          "type": "registry:lib",
+          "target": "lib/profile-analysis.ts"
+        },
+        {
+          "path": "isometric-contribution-graph/isometric-contribution-scene.tsx",
+          "type": "registry:component",
+          "target": "components/isometric-contribution-graph/isometric-contribution-scene.tsx"
+        },
+        {
+          "path": "isometric-contribution-graph/contribution-profile-panel.tsx",
+          "type": "registry:component",
+          "target": "components/isometric-contribution-graph/contribution-profile-panel.tsx"
+        },
+        {
+          "path": "isometric-contribution-graph/isometric-contribution-graph.tsx",
+          "type": "registry:component",
+          "target": "components/isometric-contribution-graph/isometric-contribution-graph.tsx"
+        }
+      ],
+      "docs": "Install with `npx shadcn@latest add radiumcoders/Isometric-Github-Contributions/isometric-contribution-graph`. Pass a `ContributionDay[]` array to `IsometricContributionGraph`, or use `IsometricContributionScene` for the raw 3D canvas."
+    }
+  ]
+}
