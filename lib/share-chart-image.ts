@@ -7,6 +7,7 @@ export type ChartImageExportResult = "downloaded-copied" | "downloaded"
 const WATERMARK_TEXT = "Powered by IGC · radiumcoders.com"
 const WATERMARK_HEIGHT = 36
 const ANALYTICS_PANEL_WIDTH = 300
+const PROFILE_PANEL_WIDTH = 220
 const BACKGROUND = "#010409"
 const TEXT_PRIMARY = "rgba(236, 253, 245, 0.95)"
 const TEXT_MUTED = "rgba(167, 243, 208, 0.6)"
@@ -90,6 +91,144 @@ function drawStatRow(
   return rowHeight
 }
 
+function drawPanelBackground(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+) {
+  ctx.fillStyle = BACKGROUND
+  ctx.fillRect(x, y, width, height)
+
+  ctx.strokeStyle = BORDER
+  ctx.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1)
+}
+
+async function drawProfileHeader(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  profile: ContributionResult,
+  avatarSize = 56
+) {
+  const padding = 16
+  let cursorY = y + padding
+
+  try {
+    const avatar = await loadImage(profile.avatarUrl)
+    const textX = x + padding + avatarSize + 12
+    const textWidth = width - padding * 2 - avatarSize - 12
+
+    ctx.drawImage(avatar, x + padding, cursorY, avatarSize, avatarSize)
+    ctx.strokeStyle = BORDER
+    ctx.strokeRect(x + padding, cursorY, avatarSize, avatarSize)
+
+    ctx.fillStyle = TEXT_PRIMARY
+    ctx.font = "600 13px system-ui, sans-serif"
+    ctx.textAlign = "left"
+    ctx.textBaseline = "top"
+    ctx.fillText(`@${profile.username}`, textX, cursorY + 4)
+
+    if (profile.name) {
+      ctx.fillStyle = TEXT_MUTED
+      ctx.font = "11px system-ui, sans-serif"
+      const name =
+        profile.name.length > 22
+          ? `${profile.name.slice(0, 19)}...`
+          : profile.name
+      ctx.fillText(name, textX, cursorY + 24)
+    }
+
+    ctx.fillStyle = TEXT_MUTED
+    ctx.font = "11px system-ui, sans-serif"
+    ctx.fillText(
+      `${profile.totalContributions.toLocaleString()} contributions`,
+      textX,
+      cursorY + (profile.name ? 42 : 26),
+      textWidth
+    )
+
+    cursorY += avatarSize + 20
+  } catch {
+    ctx.fillStyle = TEXT_PRIMARY
+    ctx.font = "600 13px system-ui, sans-serif"
+    ctx.textAlign = "left"
+    ctx.fillText(`@${profile.username}`, x + padding, cursorY)
+    cursorY += 18
+
+    ctx.fillStyle = TEXT_MUTED
+    ctx.font = "11px system-ui, sans-serif"
+    ctx.fillText(
+      `${profile.totalContributions.toLocaleString()} contributions`,
+      x + padding,
+      cursorY
+    )
+    cursorY += 24
+  }
+
+  return cursorY
+}
+
+async function drawProfilePanel(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  profile: ContributionResult
+) {
+  const padding = 16
+  const avatarSize = Math.min(96, width - padding * 2)
+  const blockHeight = avatarSize + (profile.name ? 72 : 56)
+
+  drawPanelBackground(ctx, x, y, width, height)
+
+  const blockTop = y + Math.max(padding, (height - blockHeight) / 2)
+  const avatarLeft = x + (width - avatarSize) / 2
+
+  try {
+    const avatar = await loadImage(profile.avatarUrl)
+    ctx.drawImage(avatar, avatarLeft, blockTop, avatarSize, avatarSize)
+    ctx.strokeStyle = BORDER
+    ctx.strokeRect(avatarLeft, blockTop, avatarSize, avatarSize)
+  } catch {
+    ctx.fillStyle = TEXT_MUTED
+    ctx.font = "11px system-ui, sans-serif"
+    ctx.textAlign = "center"
+    ctx.fillText("Avatar unavailable", x + width / 2, blockTop + avatarSize / 2)
+  }
+
+  let textY = blockTop + avatarSize + 14
+
+  ctx.fillStyle = TEXT_PRIMARY
+  ctx.font = "600 14px system-ui, sans-serif"
+  ctx.textAlign = "center"
+  ctx.textBaseline = "top"
+  ctx.fillText(`@${profile.username}`, x + width / 2, textY)
+  textY += 20
+
+  if (profile.name) {
+    ctx.fillStyle = TEXT_MUTED
+    ctx.font = "12px system-ui, sans-serif"
+    const name =
+      profile.name.length > 24
+        ? `${profile.name.slice(0, 21)}...`
+        : profile.name
+    ctx.fillText(name, x + width / 2, textY)
+    textY += 18
+  }
+
+  ctx.fillStyle = TEXT_MUTED
+  ctx.font = "11px system-ui, sans-serif"
+  ctx.fillText(
+    `${profile.totalContributions.toLocaleString()} contributions`,
+    x + width / 2,
+    textY
+  )
+}
+
 async function drawAnalyticsPanel(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -102,41 +241,9 @@ async function drawAnalyticsPanel(
   const analysis = analyzeProfile(contributions)
   const padding = 16
 
-  ctx.fillStyle = BACKGROUND
-  ctx.fillRect(x, y, width, height)
+  drawPanelBackground(ctx, x, y, width, height)
 
-  ctx.strokeStyle = BORDER
-  ctx.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1)
-
-  let cursorY = y + padding
-
-  try {
-    const avatar = await loadImage(profile.avatarUrl)
-    const avatarSize = 48
-    ctx.drawImage(avatar, x + padding, cursorY, avatarSize, avatarSize)
-    ctx.strokeStyle = BORDER
-    ctx.strokeRect(x + padding, cursorY, avatarSize, avatarSize)
-
-    ctx.fillStyle = TEXT_PRIMARY
-    ctx.font = "600 13px system-ui, sans-serif"
-    ctx.textAlign = "left"
-    ctx.textBaseline = "top"
-    ctx.fillText(`@${profile.username}`, x + padding + avatarSize + 12, cursorY + 4)
-
-    if (profile.name) {
-      ctx.fillStyle = TEXT_MUTED
-      ctx.font = "11px system-ui, sans-serif"
-      ctx.fillText(profile.name, x + padding + avatarSize + 12, cursorY + 24)
-    }
-
-    cursorY += avatarSize + 20
-  } catch {
-    ctx.fillStyle = TEXT_PRIMARY
-    ctx.font = "600 13px system-ui, sans-serif"
-    ctx.textAlign = "left"
-    ctx.fillText(`@${profile.username}`, x + padding, cursorY)
-    cursorY += 28
-  }
+  let cursorY = await drawProfileHeader(ctx, x, y, width, profile, 48)
 
   ctx.fillStyle = "rgba(110, 231, 183, 0.9)"
   ctx.font = "600 10px system-ui, sans-serif"
@@ -200,8 +307,10 @@ export async function buildChartExportImage({
   includeAnalytics,
 }: BuildChartImageOptions): Promise<Blob> {
   const chartImage = await blobToImage(chartBlob)
-  const analyticsWidth = includeAnalytics ? ANALYTICS_PANEL_WIDTH : 0
-  const contentWidth = analyticsWidth + chartImage.width
+  const sidePanelWidth = includeAnalytics
+    ? ANALYTICS_PANEL_WIDTH
+    : PROFILE_PANEL_WIDTH
+  const contentWidth = sidePanelWidth + chartImage.width
   const contentHeight = chartImage.height
   const totalHeight = contentHeight + WATERMARK_HEIGHT
 
@@ -222,14 +331,23 @@ export async function buildChartExportImage({
       ctx,
       0,
       0,
-      analyticsWidth,
+      sidePanelWidth,
       contentHeight,
       profile,
       contributions
     )
+  } else {
+    await drawProfilePanel(
+      ctx,
+      0,
+      0,
+      sidePanelWidth,
+      contentHeight,
+      profile
+    )
   }
 
-  ctx.drawImage(chartImage, analyticsWidth, 0)
+  ctx.drawImage(chartImage, sidePanelWidth, 0)
 
   ctx.strokeStyle = BORDER
   ctx.beginPath()
