@@ -1,6 +1,6 @@
 "use client"
 
-import { Html, OrbitControls, OrthographicCamera } from "@react-three/drei"
+import { OrbitControls, OrthographicCamera } from "@react-three/drei"
 import { Canvas, type ThreeEvent, useFrame, useThree } from "@react-three/fiber"
 import {
   useCallback,
@@ -61,12 +61,11 @@ type ContributionInstance = {
   z: number
 }
 
-type HoveredDay = {
+type TooltipState = {
   count: number
   date: string
-  height: number
   x: number
-  z: number
+  y: number
 }
 
 function formatContributionDate(date: string) {
@@ -105,7 +104,7 @@ function ContributionBarLayer({
   instances: ContributionInstance[]
   color: string
   level: number
-  onHover: (hovered: HoveredDay | null) => void
+  onHover: (tooltip: TooltipState | null) => void
 }) {
   const meshRef = useRef<THREE.InstancedMesh>(null)
   const animationStartRef = useRef<number | null>(null)
@@ -188,32 +187,21 @@ function ContributionBarLayer({
     animationDoneRef.current = allComplete
   })
 
-  const handlePointerOver = useCallback(
+  const handlePointerMove = useCallback(
     (event: ThreeEvent<PointerEvent>) => {
       event.stopPropagation()
       const instance = instances[event.instanceId ?? -1]
       const day = data[instance?.dataIndex ?? -1]
       if (!instance || !day) return
 
-      document.body.style.cursor = "pointer"
       onHover({
         count: day.count,
         date: day.date,
-        height: instance.height,
-        x: instance.x,
-        z: instance.z,
+        x: event.clientX,
+        y: event.clientY,
       })
     },
     [data, instances, onHover]
-  )
-
-  const handlePointerOut = useCallback(
-    (event: ThreeEvent<PointerEvent>) => {
-      event.stopPropagation()
-      document.body.style.cursor = "auto"
-      onHover(null)
-    },
-    [onHover]
   )
 
   return (
@@ -223,35 +211,42 @@ function ContributionBarLayer({
       castShadow
       receiveShadow
       frustumCulled={false}
-      onPointerOver={handlePointerOver}
-      onPointerOut={handlePointerOut}
+      onPointerMove={handlePointerMove}
     />
   )
 }
 
-function ContributionTooltip({ hovered }: { hovered: HoveredDay }) {
+function ContributionTooltip({ tooltip }: { tooltip: TooltipState }) {
   return (
-    <Html
-      position={[hovered.x, hovered.height + 0.35, hovered.z]}
-      center
-      distanceFactor={14}
-      style={{ pointerEvents: "none", userSelect: "none" }}
+    <div
+      className="pointer-events-none fixed z-50 -translate-y-full whitespace-nowrap rounded-md border border-emerald-300/20 bg-[#0d1117]/95 px-2.5 py-1.5 text-center shadow-lg shadow-black/40 backdrop-blur-sm"
+      style={{ left: tooltip.x, top: tooltip.y - 10 }}
     >
-      <div className="whitespace-nowrap rounded-md border border-emerald-300/20 bg-[#0d1117]/95 px-2.5 py-1.5 text-center shadow-lg shadow-black/40 backdrop-blur-sm">
-        <p className="text-xs font-medium text-emerald-50">
-          {formatContributionCount(hovered.count)}
-        </p>
-        <p className="mt-0.5 text-[10px] text-emerald-100/60">
-          {formatContributionDate(hovered.date)}
-        </p>
-      </div>
-    </Html>
+      <p className="text-xs font-medium text-emerald-50">
+        {formatContributionCount(tooltip.count)}
+      </p>
+      <p className="mt-0.5 text-[10px] text-emerald-100/60">
+        {formatContributionDate(tooltip.date)}
+      </p>
+    </div>
   )
 }
 
-function ContributionBars({ data }: { data: ContributionDay[] }) {
-  const [hovered, setHovered] = useState<HoveredDay | null>(null)
+function ContributionBars({
+  data,
+  onTooltipChange,
+}: {
+  data: ContributionDay[]
+  onTooltipChange: (tooltip: TooltipState | null) => void
+}) {
   const { cellSize, gap, heightUnit } = GRAPH_CONFIG
+
+  const handleHover = useCallback(
+    (next: TooltipState | null) => {
+      onTooltipChange(next)
+    },
+    [onTooltipChange]
+  )
 
   const maxCount = useMemo(
     () => Math.max(...data.map((entry) => entry.count), 0),
@@ -318,12 +313,6 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
     return [...grouped.values()]
   }, [instances])
 
-  useEffect(() => {
-    return () => {
-      document.body.style.cursor = "auto"
-    }
-  }, [])
-
   return (
     <group>
       <mesh
@@ -343,11 +332,9 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
           data={data}
           instances={layer.instances}
           level={layer.level}
-          onHover={setHovered}
+          onHover={handleHover}
         />
       ))}
-
-      {hovered ? <ContributionTooltip hovered={hovered} /> : null}
 
       <SceneCamera
         gridWidth={gridWidth}
@@ -398,40 +385,75 @@ export function IsometricContributionScene({
   data,
   onCaptureReady,
 }: IsometricContributionSceneProps) {
-  return (
-    <Canvas
-      shadows="soft"
-      className="size-full"
-      gl={{ antialias: true, preserveDrawingBuffer: true }}
-      dpr={[1, 2]}
-      onCreated={({ gl }) => {
-        gl.toneMapping = THREE.ACESFilmicToneMapping
-        gl.toneMappingExposure = 1.08
-      }}
-    >
-      <color attach="background" args={["#010409"]} />
-      <ambientLight intensity={0.58} />
-      <hemisphereLight args={["#e8fff0", "#020b06", 0.7]} />
-      <directionalLight
-        position={[22, 34, 24]}
-        intensity={3.35}
-        castShadow
-        shadow-bias={-0.00035}
-        shadow-radius={4}
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
-        shadow-camera-left={-SHADOW_CAMERA_SIZE}
-        shadow-camera-right={SHADOW_CAMERA_SIZE}
-        shadow-camera-top={SHADOW_CAMERA_SIZE}
-        shadow-camera-bottom={-SHADOW_CAMERA_SIZE}
-        shadow-camera-near={1}
-        shadow-camera-far={90}
-      />
-      <directionalLight position={[-24, 18, -18]} intensity={0.8} />
-      <directionalLight position={[0, 22, -28]} intensity={0.95} />
+  const [tooltip, setTooltip] = useState<TooltipState | null>(null)
+  const tooltipRef = useRef<TooltipState | null>(null)
 
-      <SceneCapture onCaptureReady={onCaptureReady} />
-      <ContributionBars data={data} />
-    </Canvas>
+  const handleTooltipChange = useCallback((next: TooltipState | null) => {
+    if (next === null) {
+      if (tooltipRef.current !== null) {
+        tooltipRef.current = null
+        setTooltip(null)
+      }
+      return
+    }
+
+    const current = tooltipRef.current
+    if (
+      current?.date === next.date &&
+      current.count === next.count &&
+      Math.abs(current.x - next.x) < 2 &&
+      Math.abs(current.y - next.y) < 2
+    ) {
+      return
+    }
+
+    tooltipRef.current = next
+    setTooltip(next)
+  }, [])
+
+  const handlePointerMissed = useCallback(() => {
+    handleTooltipChange(null)
+  }, [handleTooltipChange])
+
+  return (
+    <div className="relative size-full">
+      <Canvas
+        shadows="soft"
+        className="size-full cursor-pointer"
+        gl={{ antialias: true, preserveDrawingBuffer: true }}
+        dpr={[1, 2]}
+        onPointerMissed={handlePointerMissed}
+        onCreated={({ gl }) => {
+          gl.toneMapping = THREE.ACESFilmicToneMapping
+          gl.toneMappingExposure = 1.08
+        }}
+      >
+        <color attach="background" args={["#010409"]} />
+        <ambientLight intensity={0.58} />
+        <hemisphereLight args={["#e8fff0", "#020b06", 0.7]} />
+        <directionalLight
+          position={[22, 34, 24]}
+          intensity={3.35}
+          castShadow
+          shadow-bias={-0.00035}
+          shadow-radius={4}
+          shadow-mapSize-width={2048}
+          shadow-mapSize-height={2048}
+          shadow-camera-left={-SHADOW_CAMERA_SIZE}
+          shadow-camera-right={SHADOW_CAMERA_SIZE}
+          shadow-camera-top={SHADOW_CAMERA_SIZE}
+          shadow-camera-bottom={-SHADOW_CAMERA_SIZE}
+          shadow-camera-near={1}
+          shadow-camera-far={90}
+        />
+        <directionalLight position={[-24, 18, -18]} intensity={0.8} />
+        <directionalLight position={[0, 22, -28]} intensity={0.95} />
+
+        <SceneCapture onCaptureReady={onCaptureReady} />
+        <ContributionBars data={data} onTooltipChange={handleTooltipChange} />
+      </Canvas>
+
+      {tooltip ? <ContributionTooltip tooltip={tooltip} /> : null}
+    </div>
   )
 }
