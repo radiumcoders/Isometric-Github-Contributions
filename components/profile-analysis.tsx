@@ -21,6 +21,7 @@ export function ProfileAnalysisPanel({
         avatarUrl: profile.avatarUrl,
       }}
       contributions={contributions}
+      variant="sidebar"
       className="border-t border-emerald-100/10 pt-4"
     />
   )

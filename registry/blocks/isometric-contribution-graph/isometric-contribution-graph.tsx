@@ -55,7 +55,7 @@ export function IsometricContributionGraph({
   profile,
   showProfilePanel = false,
   title = "Isometric contribution graph",
-  description = "Drag to rotate. Scroll to zoom. Height scales with daily contributions.",
+  description = "Hover a box for daily count. Drag to rotate. Scroll to zoom.",
   onCaptureReady,
 }: IsometricContributionGraphProps) {
   const captureRef = useRef<((() => Promise<Blob | null>) | null)>(null)

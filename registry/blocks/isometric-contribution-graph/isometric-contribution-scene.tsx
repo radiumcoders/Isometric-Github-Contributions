@@ -1,8 +1,15 @@
 "use client"
 
 import { OrbitControls, OrthographicCamera } from "@react-three/drei"
-import { Canvas, useFrame, useThree } from "@react-three/fiber"
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react"
+import { Canvas, type ThreeEvent, useFrame, useThree } from "@react-three/fiber"
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 import * as THREE from "three"
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js"
 
@@ -47,10 +54,33 @@ const GROW_STAGGER_SECONDS = 0.42
 const BLOCK_BEVEL_RADIUS = 0.08
 
 type ContributionInstance = {
+  dataIndex: number
   delay: number
   height: number
   x: number
   z: number
+}
+
+type TooltipState = {
+  count: number
+  date: string
+  x: number
+  y: number
+}
+
+function formatContributionDate(date: string) {
+  const [year, month, day] = date.split("-").map(Number)
+  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  })
+}
+
+function formatContributionCount(count: number) {
+  return `${count.toLocaleString()} contribution${count === 1 ? "" : "s"}`
 }
 
 function clamp01(value: number) {
@@ -63,14 +93,18 @@ function easeOutCubic(value: number) {
 
 function ContributionBarLayer({
   cellSize,
+  data,
+  instances,
   color,
   level,
-  instances,
+  onHover,
 }: {
   cellSize: number
+  data: ContributionDay[]
+  instances: ContributionInstance[]
   color: string
   level: number
-  instances: ContributionInstance[]
+  onHover: (tooltip: TooltipState | null) => void
 }) {
   const meshRef = useRef<THREE.InstancedMesh>(null)
   const animationStartRef = useRef<number | null>(null)
@@ -153,6 +187,31 @@ function ContributionBarLayer({
     animationDoneRef.current = allComplete
   })
 
+  const showTooltip = useCallback(
+    (event: ThreeEvent<PointerEvent>) => {
+      event.stopPropagation()
+      const instance = instances[event.instanceId ?? -1]
+      const day = data[instance?.dataIndex ?? -1]
+      if (!instance || !day) return
+
+      onHover({
+        count: day.count,
+        date: day.date,
+        x: event.clientX,
+        y: event.clientY,
+      })
+    },
+    [data, instances, onHover]
+  )
+
+  const hideTooltip = useCallback(
+    (event: ThreeEvent<PointerEvent>) => {
+      event.stopPropagation()
+      onHover(null)
+    },
+    [onHover]
+  )
+
   return (
     <instancedMesh
       ref={meshRef}
@@ -160,12 +219,44 @@ function ContributionBarLayer({
       castShadow
       receiveShadow
       frustumCulled={false}
+      onPointerOver={showTooltip}
+      onPointerMove={showTooltip}
+      onPointerOut={hideTooltip}
     />
   )
 }
 
-function ContributionBars({ data }: { data: ContributionDay[] }) {
+function ContributionTooltip({ tooltip }: { tooltip: TooltipState }) {
+  return (
+    <div
+      className="pointer-events-none fixed z-50 -translate-y-full whitespace-nowrap rounded-md border border-emerald-300/20 bg-[#0d1117]/95 px-2.5 py-1.5 text-center shadow-lg shadow-black/40 backdrop-blur-sm"
+      style={{ left: tooltip.x, top: tooltip.y - 10 }}
+    >
+      <p className="text-xs font-medium text-emerald-50">
+        {formatContributionCount(tooltip.count)}
+      </p>
+      <p className="mt-0.5 text-[10px] text-emerald-100/60">
+        {formatContributionDate(tooltip.date)}
+      </p>
+    </div>
+  )
+}
+
+function ContributionBars({
+  data,
+  onTooltipChange,
+}: {
+  data: ContributionDay[]
+  onTooltipChange: (tooltip: TooltipState | null) => void
+}) {
   const { cellSize, gap, heightUnit } = GRAPH_CONFIG
+
+  const handleHover = useCallback(
+    (next: TooltipState | null) => {
+      onTooltipChange(next)
+    },
+    [onTooltipChange]
+  )
 
   const maxCount = useMemo(
     () => Math.max(...data.map((entry) => entry.count), 0),
@@ -199,7 +290,7 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
   const offsetZ = -gridDepth / 2 + cellSize / 2
   const instances = useMemo(
     () =>
-      data.map((entry) => {
+      data.map((entry, dataIndex) => {
         const height =
           entry.count > 0 ? entry.count * heightUnit : MIN_BAR_HEIGHT
         const weekRatio = weeks > 1 ? entry.week / (weeks - 1) : 0
@@ -207,6 +298,7 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
 
         return {
           color: getContributionColor(entry.count, maxCount),
+          dataIndex,
           delay: (weekRatio * 0.8 + dayRatio * 0.2) * GROW_STAGGER_SECONDS,
           height,
           level: getContributionLevel(entry.count, maxCount),
@@ -247,8 +339,10 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
           key={layer.color}
           cellSize={cellSize}
           color={layer.color}
+          data={data}
           instances={layer.instances}
           level={layer.level}
+          onHover={handleHover}
         />
       ))}
 
@@ -301,40 +395,114 @@ export function IsometricContributionScene({
   data,
   onCaptureReady,
 }: IsometricContributionSceneProps) {
-  return (
-    <Canvas
-      shadows="soft"
-      className="size-full"
-      gl={{ antialias: true, preserveDrawingBuffer: true }}
-      dpr={[1, 2]}
-      onCreated={({ gl }) => {
-        gl.toneMapping = THREE.ACESFilmicToneMapping
-        gl.toneMappingExposure = 1.08
-      }}
-    >
-      <color attach="background" args={["#010409"]} />
-      <ambientLight intensity={0.58} />
-      <hemisphereLight args={["#e8fff0", "#020b06", 0.7]} />
-      <directionalLight
-        position={[22, 34, 24]}
-        intensity={3.35}
-        castShadow
-        shadow-bias={-0.00035}
-        shadow-radius={4}
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
-        shadow-camera-left={-SHADOW_CAMERA_SIZE}
-        shadow-camera-right={SHADOW_CAMERA_SIZE}
-        shadow-camera-top={SHADOW_CAMERA_SIZE}
-        shadow-camera-bottom={-SHADOW_CAMERA_SIZE}
-        shadow-camera-near={1}
-        shadow-camera-far={90}
-      />
-      <directionalLight position={[-24, 18, -18]} intensity={0.8} />
-      <directionalLight position={[0, 22, -28]} intensity={0.95} />
+  const [tooltip, setTooltip] = useState<TooltipState | null>(null)
+  const tooltipRef = useRef<TooltipState | null>(null)
+  const clearHoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  )
 
-      <SceneCapture onCaptureReady={onCaptureReady} />
-      <ContributionBars data={data} />
-    </Canvas>
+  const clearTooltip = useCallback((immediate = false) => {
+    if (clearHoverTimeoutRef.current) {
+      clearTimeout(clearHoverTimeoutRef.current)
+      clearHoverTimeoutRef.current = null
+    }
+
+    if (immediate) {
+      tooltipRef.current = null
+      setTooltip(null)
+      return
+    }
+
+    clearHoverTimeoutRef.current = setTimeout(() => {
+      tooltipRef.current = null
+      setTooltip(null)
+      clearHoverTimeoutRef.current = null
+    }, 16)
+  }, [])
+
+  const handleTooltipChange = useCallback(
+    (next: TooltipState | null) => {
+      if (clearHoverTimeoutRef.current) {
+        clearTimeout(clearHoverTimeoutRef.current)
+        clearHoverTimeoutRef.current = null
+      }
+
+      if (next === null) {
+        clearTooltip()
+        return
+      }
+
+      const current = tooltipRef.current
+      if (
+        current?.date === next.date &&
+        current.count === next.count &&
+        Math.abs(current.x - next.x) < 2 &&
+        Math.abs(current.y - next.y) < 2
+      ) {
+        return
+      }
+
+      tooltipRef.current = next
+      setTooltip(next)
+    },
+    [clearTooltip]
+  )
+
+  const handlePointerMissed = useCallback(() => {
+    clearTooltip(true)
+  }, [clearTooltip])
+
+  const handlePointerLeave = useCallback(() => {
+    clearTooltip(true)
+  }, [clearTooltip])
+
+  useEffect(() => {
+    return () => {
+      if (clearHoverTimeoutRef.current) {
+        clearTimeout(clearHoverTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  return (
+    <div className="relative size-full" onPointerLeave={handlePointerLeave}>
+      <Canvas
+        shadows="soft"
+        className="size-full cursor-pointer"
+        gl={{ antialias: true, preserveDrawingBuffer: true }}
+        dpr={[1, 2]}
+        onPointerMissed={handlePointerMissed}
+        onCreated={({ gl }) => {
+          gl.toneMapping = THREE.ACESFilmicToneMapping
+          gl.toneMappingExposure = 1.08
+        }}
+      >
+        <color attach="background" args={["#010409"]} />
+        <ambientLight intensity={0.58} />
+        <hemisphereLight args={["#e8fff0", "#020b06", 0.7]} />
+        <directionalLight
+          position={[22, 34, 24]}
+          intensity={3.35}
+          castShadow
+          shadow-bias={-0.00035}
+          shadow-radius={4}
+          shadow-mapSize-width={2048}
+          shadow-mapSize-height={2048}
+          shadow-camera-left={-SHADOW_CAMERA_SIZE}
+          shadow-camera-right={SHADOW_CAMERA_SIZE}
+          shadow-camera-top={SHADOW_CAMERA_SIZE}
+          shadow-camera-bottom={-SHADOW_CAMERA_SIZE}
+          shadow-camera-near={1}
+          shadow-camera-far={90}
+        />
+        <directionalLight position={[-24, 18, -18]} intensity={0.8} />
+        <directionalLight position={[0, 22, -28]} intensity={0.95} />
+
+        <SceneCapture onCaptureReady={onCaptureReady} />
+        <ContributionBars data={data} onTooltipChange={handleTooltipChange} />
+      </Canvas>
+
+      {tooltip ? <ContributionTooltip tooltip={tooltip} /> : null}
+    </div>
   )
 }
