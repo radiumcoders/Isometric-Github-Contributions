@@ -142,15 +142,15 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
       return
     }
 
+    setError(null)
     void setQueryUser(null)
 
     const targetPath = `/${username}`
-    if (pathname === targetPath) {
-      await loadProfile(username)
-      return
+    if (pathname !== targetPath) {
+      router.push(targetPath)
     }
 
-    router.push(targetPath)
+    await loadProfile(username)
   }
 
   return (
