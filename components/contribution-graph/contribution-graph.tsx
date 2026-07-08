@@ -1,6 +1,6 @@
 "use client"
 
-import { Loader2 } from "lucide-react"
+import { Check, Loader2, Share2 } from "lucide-react"
 import dynamic from "next/dynamic"
 import { usePathname, useRouter } from "next/navigation"
 import { parseAsString, useQueryState } from "nuqs"
@@ -16,6 +16,7 @@ import {
 import { ProfileAnalysisPanel } from "@/components/profile-analysis"
 import { SearchPanel } from "@/components/search-panel"
 import { SidebarMenu } from "@/components/sidebar-menu"
+import { Button } from "@/components/ui/button"
 import type { ContributionResult } from "@/lib/github"
 import { parseGitHubUsername } from "@/lib/github"
 
@@ -218,8 +219,6 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
               <ProfileAnalysisPanel
                 profile={profile}
                 contributions={contributions}
-                copiedShareUrl={copiedShareUrl}
-                onShare={() => void handleShareProfile()}
               />
             ) : null}
 
@@ -227,6 +226,27 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
               <p className="text-xs text-emerald-100/55">
                 Drag to rotate - Scroll to zoom - Height is 1 unit per contribution
               </p>
+            ) : null}
+
+            {profile ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void handleShareProfile()}
+                className="h-9 w-full rounded-none border-emerald-100/25 bg-transparent text-emerald-50 hover:bg-emerald-400/10 hover:text-emerald-50"
+              >
+                {copiedShareUrl ? (
+                  <>
+                    <Check data-icon="inline-start" />
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <Share2 data-icon="inline-start" />
+                    Share profile
+                  </>
+                )}
+              </Button>
             ) : null}
           </>
         )}

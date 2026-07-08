@@ -1,11 +1,9 @@
 "use client"
 
-import { Check, Share2 } from "lucide-react"
 import Image from "next/image"
 import { useMemo } from "react"
 
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import type { ContributionDay } from "@/lib/contribution-data"
 import type { ContributionResult } from "@/lib/github"
 import { analyzeProfile } from "@/lib/profile-analysis"
@@ -13,8 +11,6 @@ import { analyzeProfile } from "@/lib/profile-analysis"
 type ProfileAnalysisPanelProps = {
   profile: ContributionResult
   contributions: ContributionDay[]
-  copiedShareUrl: boolean
-  onShare: () => void
 }
 
 function StatRow({ label, value }: { label: string; value: string }) {
@@ -31,8 +27,6 @@ function StatRow({ label, value }: { label: string; value: string }) {
 export function ProfileAnalysisPanel({
   profile,
   contributions,
-  copiedShareUrl,
-  onShare,
 }: ProfileAnalysisPanelProps) {
   const analysis = useMemo(
     () => analyzeProfile(contributions),
@@ -57,25 +51,6 @@ export function ProfileAnalysisPanel({
           {profile.name ? (
             <p className="truncate text-xs text-emerald-100/70">{profile.name}</p>
           ) : null}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onShare}
-            className="mt-2 h-7 rounded-none border-emerald-100/25 bg-transparent text-emerald-50 hover:bg-emerald-400/10 hover:text-emerald-50"
-          >
-            {copiedShareUrl ? (
-              <>
-                <Check data-icon="inline-start" />
-                Copied
-              </>
-            ) : (
-              <>
-                <Share2 data-icon="inline-start" />
-                Share
-              </>
-            )}
-          </Button>
         </div>
       </div>
 
