@@ -41,7 +41,7 @@ export function SearchPanel({
           onChange={(event) => onInputChange(event.target.value)}
           disabled={loading}
           aria-invalid={!!error}
-          className="h-9 rounded-none border-emerald-100/20 bg-transparent text-white placeholder:text-white"
+          className="h-9 rounded-none border-emerald-100/20 bg-transparent text-white placeholder:text-emerald-100/40 placeholder:italic"
         />
         <Button
           type="submit"
