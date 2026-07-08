@@ -42,7 +42,7 @@ function StatRow({
   const isSidebar = variant === "sidebar"
 
   return (
-    <div className="flex items-center justify-between gap-3 py-1.5">
+    <div className="flex items-baseline justify-between gap-4 py-2">
       <span
         className={cn(
           "shrink-0 text-xs",
@@ -53,10 +53,9 @@ function StatRow({
       </span>
       <span
         className={cn(
-          "min-w-0 truncate text-right text-xs font-medium",
+          "text-right text-xs leading-snug font-medium break-words",
           isSidebar ? "text-emerald-50" : "text-foreground"
         )}
-        title={value}
       >
         {value}
       </span>
@@ -93,7 +92,7 @@ export function ContributionProfilePanel({
         <div className="min-w-0 flex-1">
           <h2
             className={cn(
-              "truncate text-sm font-medium tracking-tight",
+              "text-sm font-medium tracking-tight break-words",
               isSidebar ? "text-emerald-50" : "text-foreground"
             )}
           >
@@ -102,7 +101,7 @@ export function ContributionProfilePanel({
           {profile.name ? (
             <p
               className={cn(
-                "truncate text-xs",
+                "text-xs break-words",
                 isSidebar ? "text-emerald-100/55" : "text-muted-foreground"
               )}
             >
@@ -114,15 +113,15 @@ export function ContributionProfilePanel({
 
       <div
         className={cn(
-          "grid grid-cols-2 gap-x-3 gap-y-1 rounded-md border p-2.5",
+          "flex flex-col rounded-md border px-2.5",
           isSidebar
-            ? "border-emerald-100/10 bg-emerald-400/5"
-            : "border-border bg-muted/30"
+            ? "divide-y divide-emerald-100/10 border-emerald-100/10 bg-emerald-400/5"
+            : "divide-y divide-border border-border bg-muted/30"
         )}
       >
         <StatRow
           variant={variant}
-          label="Total"
+          label="Total contributions"
           value={analysis.totalContributions.toLocaleString()}
         />
         <StatRow
@@ -132,40 +131,40 @@ export function ContributionProfilePanel({
         />
         <StatRow
           variant={variant}
-          label="Avg / active day"
+          label="Avg per active day"
           value={analysis.averagePerActiveDay.toFixed(1)}
         />
         <StatRow
           variant={variant}
-          label="Avg / week"
+          label="Avg per week"
           value={analysis.averagePerWeek.toFixed(1)}
         />
         <StatRow
           variant={variant}
           label="Current streak"
-          value={`${analysis.currentStreak}d`}
+          value={`${analysis.currentStreak} day${analysis.currentStreak === 1 ? "" : "s"}`}
         />
         <StatRow
           variant={variant}
           label="Longest streak"
-          value={`${analysis.longestStreak}d`}
+          value={`${analysis.longestStreak} day${analysis.longestStreak === 1 ? "" : "s"}`}
         />
         {analysis.peakDay ? (
           <StatRow
             variant={variant}
             label="Peak day"
-            value={`${analysis.peakDay.count} · ${formatPeakDate(analysis.peakDay.date)}`}
+            value={`${analysis.peakDay.count} on ${formatPeakDate(analysis.peakDay.date)}`}
           />
         ) : null}
         <StatRow
           variant={variant}
           label="Busiest weekday"
-          value={`${analysis.busiestWeekday.slice(0, 3)} · ${analysis.busiestWeekdayCount.toLocaleString()}`}
+          value={`${analysis.busiestWeekday} (${analysis.busiestWeekdayCount.toLocaleString()})`}
         />
         <StatRow
           variant={variant}
-          label="Top month"
-          value={`${analysis.mostActiveMonth.split(" ")[0]} · ${analysis.mostActiveMonthCount.toLocaleString()}`}
+          label="Most active month"
+          value={`${analysis.mostActiveMonth} (${analysis.mostActiveMonthCount.toLocaleString()})`}
         />
         <StatRow
           variant={variant}
