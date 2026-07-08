@@ -1,8 +1,15 @@
 "use client"
 
-import { OrbitControls, OrthographicCamera } from "@react-three/drei"
-import { Canvas, useFrame, useThree } from "@react-three/fiber"
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react"
+import { Html, OrbitControls, OrthographicCamera } from "@react-three/drei"
+import { Canvas, type ThreeEvent, useFrame, useThree } from "@react-three/fiber"
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 import * as THREE from "three"
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js"
 
@@ -47,10 +54,34 @@ const GROW_STAGGER_SECONDS = 0.42
 const BLOCK_BEVEL_RADIUS = 0.08
 
 type ContributionInstance = {
+  dataIndex: number
   delay: number
   height: number
   x: number
   z: number
+}
+
+type HoveredDay = {
+  count: number
+  date: string
+  height: number
+  x: number
+  z: number
+}
+
+function formatContributionDate(date: string) {
+  const [year, month, day] = date.split("-").map(Number)
+  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  })
+}
+
+function formatContributionCount(count: number) {
+  return `${count.toLocaleString()} contribution${count === 1 ? "" : "s"}`
 }
 
 function clamp01(value: number) {
@@ -63,14 +94,18 @@ function easeOutCubic(value: number) {
 
 function ContributionBarLayer({
   cellSize,
+  data,
+  instances,
   color,
   level,
-  instances,
+  onHover,
 }: {
   cellSize: number
+  data: ContributionDay[]
+  instances: ContributionInstance[]
   color: string
   level: number
-  instances: ContributionInstance[]
+  onHover: (hovered: HoveredDay | null) => void
 }) {
   const meshRef = useRef<THREE.InstancedMesh>(null)
   const animationStartRef = useRef<number | null>(null)
@@ -153,6 +188,34 @@ function ContributionBarLayer({
     animationDoneRef.current = allComplete
   })
 
+  const handlePointerOver = useCallback(
+    (event: ThreeEvent<PointerEvent>) => {
+      event.stopPropagation()
+      const instance = instances[event.instanceId ?? -1]
+      const day = data[instance?.dataIndex ?? -1]
+      if (!instance || !day) return
+
+      document.body.style.cursor = "pointer"
+      onHover({
+        count: day.count,
+        date: day.date,
+        height: instance.height,
+        x: instance.x,
+        z: instance.z,
+      })
+    },
+    [data, instances, onHover]
+  )
+
+  const handlePointerOut = useCallback(
+    (event: ThreeEvent<PointerEvent>) => {
+      event.stopPropagation()
+      document.body.style.cursor = "auto"
+      onHover(null)
+    },
+    [onHover]
+  )
+
   return (
     <instancedMesh
       ref={meshRef}
@@ -160,11 +223,34 @@ function ContributionBarLayer({
       castShadow
       receiveShadow
       frustumCulled={false}
+      onPointerOver={handlePointerOver}
+      onPointerOut={handlePointerOut}
     />
   )
 }
 
+function ContributionTooltip({ hovered }: { hovered: HoveredDay }) {
+  return (
+    <Html
+      position={[hovered.x, hovered.height + 0.35, hovered.z]}
+      center
+      distanceFactor={14}
+      style={{ pointerEvents: "none", userSelect: "none" }}
+    >
+      <div className="whitespace-nowrap rounded-md border border-emerald-300/20 bg-[#0d1117]/95 px-2.5 py-1.5 text-center shadow-lg shadow-black/40 backdrop-blur-sm">
+        <p className="text-xs font-medium text-emerald-50">
+          {formatContributionCount(hovered.count)}
+        </p>
+        <p className="mt-0.5 text-[10px] text-emerald-100/60">
+          {formatContributionDate(hovered.date)}
+        </p>
+      </div>
+    </Html>
+  )
+}
+
 function ContributionBars({ data }: { data: ContributionDay[] }) {
+  const [hovered, setHovered] = useState<HoveredDay | null>(null)
   const { cellSize, gap, heightUnit } = GRAPH_CONFIG
 
   const maxCount = useMemo(
@@ -199,7 +285,7 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
   const offsetZ = -gridDepth / 2 + cellSize / 2
   const instances = useMemo(
     () =>
-      data.map((entry) => {
+      data.map((entry, dataIndex) => {
         const height =
           entry.count > 0 ? entry.count * heightUnit : MIN_BAR_HEIGHT
         const weekRatio = weeks > 1 ? entry.week / (weeks - 1) : 0
@@ -207,6 +293,7 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
 
         return {
           color: getContributionColor(entry.count, maxCount),
+          dataIndex,
           delay: (weekRatio * 0.8 + dayRatio * 0.2) * GROW_STAGGER_SECONDS,
           height,
           level: getContributionLevel(entry.count, maxCount),
@@ -231,6 +318,12 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
     return [...grouped.values()]
   }, [instances])
 
+  useEffect(() => {
+    return () => {
+      document.body.style.cursor = "auto"
+    }
+  }, [])
+
   return (
     <group>
       <mesh
@@ -247,10 +340,14 @@ function ContributionBars({ data }: { data: ContributionDay[] }) {
           key={layer.color}
           cellSize={cellSize}
           color={layer.color}
+          data={data}
           instances={layer.instances}
           level={layer.level}
+          onHover={setHovered}
         />
       ))}
+
+      {hovered ? <ContributionTooltip hovered={hovered} /> : null}
 
       <SceneCamera
         gridWidth={gridWidth}

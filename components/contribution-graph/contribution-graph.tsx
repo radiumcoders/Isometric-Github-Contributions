@@ -287,19 +287,6 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
             />
 
             {profile ? (
-              <ProfileAnalysisPanel
-                profile={profile}
-                contributions={contributions}
-              />
-            ) : null}
-
-            {profile ? (
-              <p className="text-xs text-emerald-100/55">
-                Drag to rotate - Scroll to zoom - Height is 1 unit per contribution
-              </p>
-            ) : null}
-
-            {profile ? (
               <div className="flex flex-col gap-2">
                 <label className="flex cursor-pointer items-center gap-2.5 text-xs text-emerald-100/70">
                   <input
@@ -365,6 +352,19 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
                   )}
                 </Button>
               </div>
+            ) : null}
+
+            {profile ? (
+              <p className="text-xs text-emerald-100/55">
+                Hover a box for daily count - Drag to rotate - Scroll to zoom
+              </p>
+            ) : null}
+
+            {profile ? (
+              <ProfileAnalysisPanel
+                profile={profile}
+                contributions={contributions}
+              />
             ) : null}
           </>
         )}
