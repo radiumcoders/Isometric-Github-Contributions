@@ -5,19 +5,17 @@ import { analyzeProfile } from "@/lib/profile-analysis"
 export type ChartImageExportResult = "downloaded-copied" | "downloaded"
 
 const WATERMARK_TEXT = "Powered by IGC · radiumcoders.com"
-const EXPORT_WIDTH = 1920
-const EXPORT_HEIGHT = 1080
-const LEFT_PANEL_WIDTH = 760
-const WATERMARK_HEIGHT = 52
-const PANEL_PADDING = 56
+const MIN_EXPORT_WIDTH = 1600
+const OVERLAY_PADDING = 28
+const WATERMARK_SCRIM_HEIGHT = 72
 
 const BACKGROUND = "#010409"
-const PANEL_GRADIENT_TOP = "#04140c"
 const ACCENT = "#56d364"
 const ACCENT_SOFT = "rgba(86, 211, 100, 0.75)"
 const TEXT_PRIMARY = "#f4fff8"
 const TEXT_MUTED = "rgba(167, 243, 208, 0.72)"
 const BORDER = "rgba(86, 211, 100, 0.22)"
+const GLASS = "rgba(1, 4, 9, 0.74)"
 
 type BuildChartImageOptions = {
   chartBlob: Blob
@@ -72,29 +70,51 @@ function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   })
 }
 
+function getExportSize(chartWidth: number, chartHeight: number) {
+  const scale = Math.max(1, MIN_EXPORT_WIDTH / chartWidth)
+  return {
+    width: Math.round(chartWidth * scale),
+    height: Math.round(chartHeight * scale),
+    scale,
+  }
+}
+
 function getContributionYear(contributions: ContributionDay[]) {
   if (contributions.length === 0) return new Date().getFullYear()
 
-  const latestDate = contributions.reduce((latest, day) =>
-    day.date > latest ? day.date : latest
-  , contributions[0].date)
+  const latestDate = contributions.reduce(
+    (latest, day) => (day.date > latest ? day.date : latest),
+    contributions[0].date
+  )
 
   return Number.parseInt(latestDate.slice(0, 4), 10)
 }
 
-function fitRect(
-  sourceWidth: number,
-  sourceHeight: number,
-  maxWidth: number,
-  maxHeight: number
+function drawChartBackground(
+  ctx: CanvasRenderingContext2D,
+  chartImage: HTMLImageElement,
+  width: number,
+  height: number
 ) {
-  const scale = Math.min(maxWidth / sourceWidth, maxHeight / sourceHeight)
-  const width = Math.round(sourceWidth * scale)
-  const height = Math.round(sourceHeight * scale)
-  const x = Math.round((maxWidth - width) / 2)
-  const y = Math.round((maxHeight - height) / 2)
+  ctx.fillStyle = BACKGROUND
+  ctx.fillRect(0, 0, width, height)
 
-  return { x, y, width, height, scale }
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = "high"
+  ctx.drawImage(chartImage, 0, 0, width, height)
+}
+
+function drawGlassPanel(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+) {
+  ctx.fillStyle = GLASS
+  ctx.fillRect(x, y, width, height)
+  ctx.strokeStyle = BORDER
+  ctx.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1)
 }
 
 function drawGlowText(
@@ -112,7 +132,7 @@ function drawGlowText(
   ctx.textAlign = align
   ctx.textBaseline = "top"
   ctx.shadowColor = glow
-  ctx.shadowBlur = 18
+  ctx.shadowBlur = 14
   ctx.fillStyle = color
   ctx.fillText(text, x, y)
   ctx.shadowBlur = 0
@@ -134,7 +154,6 @@ async function drawCircularAvatar(
   ctx.save()
   ctx.beginPath()
   ctx.arc(centerX, centerY, radius, 0, Math.PI * 2)
-  ctx.closePath()
   ctx.clip()
 
   try {
@@ -143,15 +162,9 @@ async function drawCircularAvatar(
   } catch {
     ctx.fillStyle = "#0d2818"
     ctx.fillRect(x, y, size, size)
-    ctx.fillStyle = TEXT_MUTED
-    ctx.font = "12px system-ui, sans-serif"
-    ctx.textAlign = "center"
-    ctx.textBaseline = "middle"
-    ctx.fillText("?", centerX, centerY)
   }
 
   ctx.restore()
-
   ctx.strokeStyle = BORDER
   ctx.lineWidth = 2
   ctx.beginPath()
@@ -166,7 +179,7 @@ function drawMetricIcon(
   radius: number,
   icon: MetricCard["icon"]
 ) {
-  ctx.fillStyle = "rgba(86, 211, 100, 0.12)"
+  ctx.fillStyle = "rgba(86, 211, 100, 0.14)"
   ctx.strokeStyle = BORDER
   ctx.lineWidth = 1.5
   ctx.beginPath()
@@ -183,37 +196,37 @@ function drawMetricIcon(
   switch (icon) {
     case "flame":
       ctx.beginPath()
-      ctx.moveTo(cx, cy + 8)
-      ctx.bezierCurveTo(cx - 8, cy + 2, cx - 6, cy - 8, cx, cy - 12)
-      ctx.bezierCurveTo(cx + 6, cy - 8, cx + 8, cy + 2, cx, cy + 8)
+      ctx.moveTo(cx, cy + 7)
+      ctx.bezierCurveTo(cx - 7, cy + 2, cx - 5, cy - 7, cx, cy - 10)
+      ctx.bezierCurveTo(cx + 5, cy - 7, cx + 7, cy + 2, cx, cy + 7)
       ctx.stroke()
       break
     case "bolt":
       ctx.beginPath()
-      ctx.moveTo(cx + 2, cy - 10)
-      ctx.lineTo(cx - 4, cy + 1)
+      ctx.moveTo(cx + 2, cy - 8)
+      ctx.lineTo(cx - 3, cy + 1)
       ctx.lineTo(cx + 1, cy + 1)
-      ctx.lineTo(cx - 2, cy + 10)
-      ctx.lineTo(cx + 4, cy - 1)
+      ctx.lineTo(cx - 2, cy + 8)
+      ctx.lineTo(cx + 3, cy - 1)
       ctx.lineTo(cx - 1, cy - 1)
       ctx.closePath()
       ctx.fill()
       break
     case "peak":
       ctx.beginPath()
-      ctx.moveTo(cx - 10, cy + 8)
+      ctx.moveTo(cx - 8, cy + 6)
       ctx.lineTo(cx - 2, cy - 2)
-      ctx.lineTo(cx + 4, cy + 4)
-      ctx.lineTo(cx + 10, cy - 8)
+      ctx.lineTo(cx + 3, cy + 3)
+      ctx.lineTo(cx + 8, cy - 6)
       ctx.stroke()
       break
     case "crown":
       ctx.beginPath()
-      ctx.moveTo(cx - 10, cy + 6)
-      ctx.lineTo(cx - 6, cy - 4)
+      ctx.moveTo(cx - 8, cy + 5)
+      ctx.lineTo(cx - 5, cy - 3)
       ctx.lineTo(cx, cy + 2)
-      ctx.lineTo(cx + 6, cy - 4)
-      ctx.lineTo(cx + 10, cy + 6)
+      ctx.lineTo(cx + 5, cy - 3)
+      ctx.lineTo(cx + 8, cy + 5)
       ctx.closePath()
       ctx.stroke()
       break
@@ -225,34 +238,36 @@ function drawMetricCard(
   x: number,
   y: number,
   width: number,
-  card: MetricCard
+  card: MetricCard,
+  compact: boolean
 ) {
-  const iconRadius = 22
+  const iconRadius = compact ? 16 : 20
   const centerX = x + width / 2
+  const valueSize = compact ? 20 : 24
 
-  drawMetricIcon(ctx, centerX, y + iconRadius + 4, iconRadius, card.icon)
+  drawMetricIcon(ctx, centerX, y + iconRadius + 2, iconRadius, card.icon)
 
-  ctx.textAlign = "center"
-  ctx.textBaseline = "top"
   drawGlowText(
     ctx,
     card.value,
     centerX,
-    y + iconRadius * 2 + 18,
-    "700 28px system-ui, sans-serif",
+    y + iconRadius * 2 + 12,
+    `700 ${valueSize}px system-ui, sans-serif`,
     TEXT_PRIMARY,
     ACCENT_SOFT,
     "center"
   )
 
   ctx.fillStyle = ACCENT_SOFT
-  ctx.font = "600 11px system-ui, sans-serif"
-  ctx.fillText(card.label, centerX, y + iconRadius * 2 + 54)
+  ctx.font = `600 ${compact ? 9 : 10}px system-ui, sans-serif`
+  ctx.textAlign = "center"
+  ctx.textBaseline = "top"
+  ctx.fillText(card.label, centerX, y + iconRadius * 2 + (compact ? 36 : 42))
 
   if (card.sublabel) {
     ctx.fillStyle = TEXT_MUTED
-    ctx.font = "10px system-ui, sans-serif"
-    ctx.fillText(card.sublabel, centerX, y + iconRadius * 2 + 70)
+    ctx.font = "9px system-ui, sans-serif"
+    ctx.fillText(card.sublabel, centerX, y + iconRadius * 2 + (compact ? 50 : 56))
   }
 }
 
@@ -294,100 +309,87 @@ function drawExtendedAnalytics(
   let cursorY = y
 
   ctx.fillStyle = ACCENT_SOFT
-  ctx.font = "600 11px system-ui, sans-serif"
+  ctx.font = "600 10px system-ui, sans-serif"
   ctx.textAlign = "left"
   ctx.fillText("DETAILED ANALYTICS", x, cursorY)
-  cursorY += 22
+  cursorY += 18
 
   for (const [label, value] of rows) {
-    ctx.strokeStyle = "rgba(86, 211, 100, 0.12)"
-    ctx.beginPath()
-    ctx.moveTo(x, cursorY + 24)
-    ctx.lineTo(x + width, cursorY + 24)
-    ctx.stroke()
-
     ctx.fillStyle = TEXT_MUTED
-    ctx.font = "12px system-ui, sans-serif"
-    ctx.fillText(label, x, cursorY + 4)
+    ctx.font = "11px system-ui, sans-serif"
+    ctx.fillText(label, x, cursorY)
 
     ctx.fillStyle = TEXT_PRIMARY
     ctx.textAlign = "right"
-    ctx.fillText(value, x + width, cursorY + 4)
+    ctx.fillText(value, x + width, cursorY)
     ctx.textAlign = "left"
 
-    cursorY += 30
+    cursorY += 22
   }
 }
 
-async function drawLeftPanel(
+async function drawProfileOverlay(
   ctx: CanvasRenderingContext2D,
+  canvasWidth: number,
   profile: ContributionResult,
   contributions: ContributionDay[],
   includeAnalytics: boolean
 ) {
   const analysis = analyzeProfile(contributions)
   const year = getContributionYear(contributions)
-  const panelHeight = EXPORT_HEIGHT - WATERMARK_HEIGHT
+  const overlayWidth = Math.min(620, canvasWidth - OVERLAY_PADDING * 2)
+  const overlayX = OVERLAY_PADDING
+  const overlayY = OVERLAY_PADDING
+  const innerX = overlayX + 24
+  const innerWidth = overlayWidth - 48
+  const overlayHeight = includeAnalytics ? 430 : 300
 
-  const gradient = ctx.createLinearGradient(0, 0, LEFT_PANEL_WIDTH, panelHeight)
-  gradient.addColorStop(0, PANEL_GRADIENT_TOP)
-  gradient.addColorStop(1, BACKGROUND)
-  ctx.fillStyle = gradient
-  ctx.fillRect(0, 0, LEFT_PANEL_WIDTH, panelHeight)
+  drawGlassPanel(ctx, overlayX, overlayY, overlayWidth, overlayHeight)
 
-  ctx.strokeStyle = BORDER
-  ctx.beginPath()
-  ctx.moveTo(LEFT_PANEL_WIDTH, 0)
-  ctx.lineTo(LEFT_PANEL_WIDTH, panelHeight)
-  ctx.stroke()
+  let y = overlayY + 24
 
-  const x = PANEL_PADDING
-  let y = PANEL_PADDING
+  await drawCircularAvatar(ctx, innerX, y, 56, profile.avatarUrl)
 
-  await drawCircularAvatar(ctx, x, y, 72, profile.avatarUrl)
-
-  ctx.textAlign = "left"
-  ctx.textBaseline = "top"
   drawGlowText(
     ctx,
     `@${profile.username}`,
-    x + 88,
-    y + 8,
-    "700 28px system-ui, sans-serif",
+    innerX + 68,
+    y + 6,
+    "700 22px system-ui, sans-serif",
     TEXT_PRIMARY
   )
 
   if (profile.name) {
     ctx.fillStyle = ACCENT
-    ctx.font = "500 20px system-ui, sans-serif"
-    ctx.fillText(profile.name, x + 88, y + 42)
+    ctx.font = "500 16px system-ui, sans-serif"
+    ctx.textAlign = "left"
+    ctx.fillText(profile.name, innerX + 68, y + 32)
   }
 
-  y += 112
+  y += 76
 
   ctx.fillStyle = TEXT_PRIMARY
-  ctx.font = "700 22px system-ui, sans-serif"
-  ctx.fillText(`YEAR IN CODE ${year}`, x, y)
-  y += 34
-  drawDivider(ctx, x, y, LEFT_PANEL_WIDTH - PANEL_PADDING * 2)
-  y += 36
+  ctx.font = "700 16px system-ui, sans-serif"
+  ctx.fillText(`YEAR IN CODE ${year}`, innerX, y)
+  y += 24
+  drawDivider(ctx, innerX, y, innerWidth)
+  y += 22
 
-  const totalText = analysis.totalContributions.toLocaleString()
   drawGlowText(
     ctx,
-    totalText,
-    x,
+    analysis.totalContributions.toLocaleString(),
+    innerX,
     y,
-    "800 92px system-ui, sans-serif",
+    "800 56px system-ui, sans-serif",
     TEXT_PRIMARY,
     "rgba(86, 211, 100, 0.35)"
   )
-  y += 98
+  y += 62
 
   ctx.fillStyle = ACCENT
-  ctx.font = "700 16px system-ui, sans-serif"
-  ctx.fillText("TOTAL CONTRIBUTIONS", x, y)
-  y += 56
+  ctx.font = "700 12px system-ui, sans-serif"
+  ctx.fillText("TOTAL CONTRIBUTIONS", innerX, y)
+  y += 34
 
   const metrics: MetricCard[] = [
     {
@@ -418,55 +420,34 @@ async function drawLeftPanel(
     },
   ]
 
-  const cardWidth = (LEFT_PANEL_WIDTH - PANEL_PADDING * 2) / 4
+  const cardWidth = innerWidth / 4
   metrics.forEach((metric, index) => {
-    drawMetricCard(ctx, x + cardWidth * index, y, cardWidth, metric)
+    drawMetricCard(ctx, innerX + cardWidth * index, y, cardWidth, metric, true)
   })
 
   if (includeAnalytics) {
-    drawExtendedAnalytics(
-      ctx,
-      x,
-      y + 150,
-      LEFT_PANEL_WIDTH - PANEL_PADDING * 2,
-      contributions
-    )
+    drawExtendedAnalytics(ctx, innerX, y + 108, innerWidth, contributions)
   }
 }
 
-function drawChartArea(ctx: CanvasRenderingContext2D, chartImage: HTMLImageElement) {
-  const areaX = LEFT_PANEL_WIDTH
-  const areaY = 36
-  const areaWidth = EXPORT_WIDTH - LEFT_PANEL_WIDTH - 36
-  const areaHeight = EXPORT_HEIGHT - WATERMARK_HEIGHT - 72
-  const fit = fitRect(chartImage.width, chartImage.height, areaWidth, areaHeight)
-
-  ctx.save()
-  ctx.shadowColor = "rgba(86, 211, 100, 0.18)"
-  ctx.shadowBlur = 42
-  ctx.drawImage(
-    chartImage,
-    areaX + fit.x,
-    areaY + fit.y,
-    fit.width,
-    fit.height
-  )
-  ctx.restore()
-}
-
-function drawWatermark(ctx: CanvasRenderingContext2D) {
-  const y = EXPORT_HEIGHT - WATERMARK_HEIGHT
-
-  ctx.fillStyle = BACKGROUND
-  ctx.fillRect(0, y, EXPORT_WIDTH, WATERMARK_HEIGHT)
-
-  drawDivider(ctx, EXPORT_WIDTH * 0.2, y + 1, EXPORT_WIDTH * 0.6)
+function drawWatermarkOverlay(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number
+) {
+  const scrimTop = height - WATERMARK_SCRIM_HEIGHT
+  const gradient = ctx.createLinearGradient(0, scrimTop, 0, height)
+  gradient.addColorStop(0, "rgba(1, 4, 9, 0)")
+  gradient.addColorStop(0.65, "rgba(1, 4, 9, 0.72)")
+  gradient.addColorStop(1, "rgba(1, 4, 9, 0.92)")
+  ctx.fillStyle = gradient
+  ctx.fillRect(0, scrimTop, width, WATERMARK_SCRIM_HEIGHT)
 
   ctx.fillStyle = TEXT_MUTED
-  ctx.font = "500 14px system-ui, sans-serif"
+  ctx.font = "500 13px system-ui, sans-serif"
   ctx.textAlign = "center"
   ctx.textBaseline = "middle"
-  ctx.fillText(WATERMARK_TEXT, EXPORT_WIDTH / 2, y + WATERMARK_HEIGHT / 2)
+  ctx.fillText(WATERMARK_TEXT, width / 2, height - WATERMARK_SCRIM_HEIGHT / 2)
 }
 
 export async function buildChartExportImage({
@@ -476,22 +457,20 @@ export async function buildChartExportImage({
   includeAnalytics,
 }: BuildChartImageOptions): Promise<Blob> {
   const chartImage = await blobToImage(chartBlob)
+  const { width, height } = getExportSize(chartImage.width, chartImage.height)
 
   const canvas = document.createElement("canvas")
-  canvas.width = EXPORT_WIDTH
-  canvas.height = EXPORT_HEIGHT
+  canvas.width = width
+  canvas.height = height
   const ctx = canvas.getContext("2d")
 
   if (!ctx) {
     throw new Error("Failed to compose chart image.")
   }
 
-  ctx.fillStyle = BACKGROUND
-  ctx.fillRect(0, 0, EXPORT_WIDTH, EXPORT_HEIGHT)
-
-  await drawLeftPanel(ctx, profile, contributions, includeAnalytics)
-  drawChartArea(ctx, chartImage)
-  drawWatermark(ctx)
+  drawChartBackground(ctx, chartImage, width, height)
+  await drawProfileOverlay(ctx, width, profile, contributions, includeAnalytics)
+  drawWatermarkOverlay(ctx, width, height)
 
   return canvasToBlob(canvas)
 }
