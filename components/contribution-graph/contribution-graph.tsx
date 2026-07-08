@@ -1,8 +1,7 @@
 "use client"
 
-import { Check, Loader2, Share2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import dynamic from "next/dynamic"
-import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { parseAsString, useQueryState } from "nuqs"
 import {
@@ -14,7 +13,7 @@ import {
   useState,
 } from "react"
 
-import { Badge } from "@/components/ui/badge"
+import { ProfileAnalysisPanel } from "@/components/profile-analysis"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import type { ContributionResult } from "@/lib/github"
@@ -54,13 +53,6 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
   const copyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const contributions = useMemo(() => profile?.data ?? [], [profile?.data])
-
-  const maxDay = useMemo(() => {
-    if (contributions.length === 0) return null
-    return contributions.reduce((best, day) =>
-      day.count > best.count ? day : best
-    )
-  }, [contributions])
 
   const loadProfile = useCallback(async (rawInput: string) => {
     const username = parseGitHubUsername(rawInput)
@@ -249,55 +241,6 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
           </form>
 
           {error ? <p className="text-sm text-red-300">{error}</p> : null}
-
-          {profile ? (
-            <div className="flex flex-wrap items-center gap-3">
-              <Image
-                src={profile.avatarUrl}
-                alt={`${profile.username} avatar`}
-                width={32}
-                height={32}
-                unoptimized
-                className="size-8 rounded-none ring-1 ring-emerald-100/20"
-              />
-              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                <Badge variant="secondary">
-                  @{profile.username}
-                  {profile.name ? ` - ${profile.name}` : ""}
-                </Badge>
-                <Badge variant="secondary">
-                  {profile.totalContributions.toLocaleString()} contributions
-                </Badge>
-                {maxDay && maxDay.count > 0 ? (
-                  <Badge
-                    variant="outline"
-                    className="border-emerald-100/25 text-emerald-50/85"
-                  >
-                    Peak: {maxDay.count} on {maxDay.date}
-                  </Badge>
-                ) : null}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void handleShareProfile()}
-                  className="h-7 rounded-none border-emerald-100/25 bg-transparent text-emerald-50 hover:bg-emerald-400/10 hover:text-emerald-50"
-                >
-                  {copiedShareUrl ? (
-                    <>
-                      <Check data-icon="inline-start" />
-                      Copied
-                    </>
-                  ) : (
-                    <>
-                      <Share2 data-icon="inline-start" />
-                      Share
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          ) : null}
         </div>
 
         {profile ? (
@@ -306,6 +249,17 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
           </p>
         ) : null}
       </div>
+
+      {profile ? (
+        <div className="pointer-events-none absolute top-0 right-0 bottom-0 z-10 flex w-full max-w-xs justify-end p-3 sm:p-4">
+          <ProfileAnalysisPanel
+            profile={profile}
+            contributions={contributions}
+            copiedShareUrl={copiedShareUrl}
+            onShare={() => void handleShareProfile()}
+          />
+        </div>
+      ) : null}
     </section>
   )
 }
