@@ -14,8 +14,7 @@ import {
 } from "react"
 
 import { ProfileAnalysisPanel } from "@/components/profile-analysis"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { SearchPanel } from "@/components/search-panel"
 import type { ContributionResult } from "@/lib/github"
 import { parseGitHubUsername } from "@/lib/github"
 
@@ -199,59 +198,8 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
         )}
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 p-3 sm:p-4">
-        <div className="pointer-events-auto flex w-full max-w-xl flex-col gap-3 border border-emerald-300/15 bg-black/45 p-3 text-white shadow-2xl shadow-black/30 backdrop-blur-sm">
-          <div>
-            <h1 className="text-base font-medium tracking-tight sm:text-lg">
-              Isometric Contribution Graph
-            </h1>
-            <p className="mt-1 text-xs leading-relaxed text-emerald-100/65 sm:text-sm">
-              Paste a GitHub username or profile link. Shareable URLs look like
-              /theorcdev or /radiumcoders.
-            </p>
-          </div>
-
-          <form
-            onSubmit={handleSubmit}
-            className="flex flex-col gap-2 sm:flex-row sm:items-center"
-          >
-            <Input
-              type="text"
-              placeholder="octocat or https://github.com/octocat"
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              disabled={loading}
-              aria-invalid={!!error}
-              className="h-9 rounded-none border-emerald-100/20 bg-white/95 text-black placeholder:text-black/50 sm:flex-1"
-            />
-            <Button
-              type="submit"
-              disabled={loading || !input.trim()}
-              className="h-9 rounded-none bg-emerald-400 text-black hover:bg-emerald-300"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="animate-spin" data-icon="inline-start" />
-                  Loading
-                </>
-              ) : (
-                "Show graph"
-              )}
-            </Button>
-          </form>
-
-          {error ? <p className="text-sm text-red-300">{error}</p> : null}
-        </div>
-
-        {profile ? (
-          <p className="pointer-events-auto mt-2 max-w-xl text-xs text-emerald-100/55">
-            Drag to rotate - Scroll to zoom - Height is 1 unit per contribution
-          </p>
-        ) : null}
-      </div>
-
       {profile ? (
-        <div className="pointer-events-none absolute top-0 right-0 bottom-0 z-10 flex w-full max-w-xs justify-end p-3 sm:p-4">
+        <div className="pointer-events-none absolute top-0 left-0 bottom-0 z-10 flex w-full max-w-xs justify-start p-3 sm:p-4">
           <ProfileAnalysisPanel
             profile={profile}
             contributions={contributions}
@@ -260,6 +208,17 @@ export function ContributionGraph({ initialUsername }: ContributionGraphProps) {
           />
         </div>
       ) : null}
+
+      <div className="pointer-events-none absolute top-0 right-0 bottom-0 z-10 flex w-full max-w-xs justify-end p-3 sm:p-4">
+        <SearchPanel
+          input={input}
+          loading={loading}
+          error={error}
+          showControlsHint={!!profile}
+          onInputChange={setInput}
+          onSubmit={handleSubmit}
+        />
+      </div>
     </section>
   )
 }
