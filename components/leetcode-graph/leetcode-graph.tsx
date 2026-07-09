@@ -257,20 +257,20 @@ export function LeetCodeGraph({ initialUsername }: LeetCodeGraphProps) {
             key={profile.username}
             data={contributions}
             onCaptureReady={handleCaptureReady}
-            heightUnit={1}
           />
         ) : loading ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-sm text-emerald-100/60">
             <Loader2 className="size-6 animate-spin text-emerald-300" />
             <p>
-              Loading @
-              {parseLeetCodeUsername(input.trim()) ?? input.trim()}&apos;s
-              contribution terrain...
+              Loading @{parseLeetCodeUsername(input.trim()) ?? input.trim()}
+              &apos;s contribution terrain...
             </p>
           </div>
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center text-sm text-emerald-100/60">
-            <p>Enter a LeetCode profile to render their contribution terrain.</p>
+            <p>
+              Enter a LeetCode profile to render their contribution terrain.
+            </p>
             <p className="text-xs text-emerald-100/40">
               Try &quot;theorcdev&quot; or share a link like /leetcode/theorcdev
             </p>
@@ -298,7 +298,8 @@ export function LeetCodeGraph({ initialUsername }: LeetCodeGraphProps) {
 
             {profile ? (
               <p className="text-xs text-emerald-100/55">
-                Drag to rotate - Scroll to zoom - Height is 1 units per contribution
+                Drag to rotate - Scroll to zoom - Height is 1 units per
+                contribution
               </p>
             ) : null}
 
